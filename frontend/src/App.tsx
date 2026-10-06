@@ -111,7 +111,7 @@ export function App() {
               </select>
             </label>
             <span className="spacer" />
-            <button type="button" onClick={() => exportCsv(views, report.methods.ranks, report.sample.sampleId)}>Export all (CSV)</button>
+            <button type="button" className="primary" onClick={() => exportCsv(views, report.methods.ranks, report.sample.sampleId)}>Export all (CSV)</button>
             <a className="button" href="#reliability">Methods</a>
           </div>
         </header>

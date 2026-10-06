@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { Report } from '../types';
 import { fmtCompact, fmtInt, fmtPct, resolutionProfile, summarize, type AsvView, type Filters } from '../lib/derive';
 import { BarRow, Section, Toggle } from './bits';
@@ -8,6 +8,18 @@ interface Props {
   views: AsvView[];
   onDrill: (patch: Partial<Filters>) => void;
 }
+
+const svg = (d: ReactNode) => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden>{d}</svg>
+);
+const TILE_ICONS = {
+  taxa: svg(<><circle cx="6" cy="6" r="2" /><circle cx="6" cy="18" r="2" /><circle cx="18" cy="12" r="2" /><path d="M8 6h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8M13 12h3" /></>),
+  species: svg(<><circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" /></>),
+  higher: svg(<path d="M5 20V10M12 20V4M19 20v-7" />),
+  unrep: svg(<><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4M11 8v3M11 14h.01" /></>),
+  unresolved: svg(<><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01" /></>),
+};
 
 export function Summary({ report, views, onDrill }: Props) {
   const ranks = report.methods.ranks;
@@ -20,31 +32,31 @@ export function Summary({ report, views, onDrill }: Props) {
   const flaggedControls = report.controls.length;
 
   // Tiles are counts with a click-through. Nothing here is decorative.
-  const tiles: { value: string; label: string; hint: string; patch: Partial<Filters> }[] = [
+  const tiles: { value: string; label: string; hint: string; patch: Partial<Filters>; tone: string; icon: ReactNode }[] = [
     {
       value: fmtInt(s.taxa), label: 'taxa at their deepest supported rank',
       hint: 'Each ASV counted once, at the deepest rank its evidence supports',
-      patch: {},
+      patch: {}, tone: 'teal', icon: TILE_ICONS.taxa,
     },
     {
       value: fmtInt(s.hcSpecies), label: 'species with high confidence',
       hint: 'Distinct species names, High confidence, contaminants excluded',
-      patch: { preset: 'hc-species' },
+      patch: { preset: 'hc-species' }, tone: 'good', icon: TILE_ICONS.species,
     },
     {
       value: fmtInt(s.aboveGenus), label: 'ASVs resolved only above genus',
       hint: 'Deepest supported rank is Family or higher',
-      patch: { ranks: ranks.slice(0, genusIdx) },
+      patch: { ranks: ranks.slice(0, genusIdx) }, tone: 'info', icon: TILE_ICONS.higher,
     },
     {
       value: fmtInt(s.unrepresented), label: 'ASVs possibly unrepresented in the reference DB',
       hint: 'High reference divergence. Not evidence of new species.',
-      patch: { preset: 'unrepresented' },
+      patch: { preset: 'unrepresented' }, tone: 'div', icon: TILE_ICONS.unrep,
     },
     {
       value: fmtInt(s.unresolved), label: 'ASVs unresolved',
       hint: 'No rank supported, not even Domain',
-      patch: { preset: 'unresolved' },
+      patch: { preset: 'unresolved' }, tone: 'bad', icon: TILE_ICONS.unresolved,
     },
   ];
 
@@ -57,7 +69,8 @@ export function Summary({ report, views, onDrill }: Props) {
 
       <div className="tiles">
         {tiles.map((t) => (
-          <button key={t.label} type="button" className="tile" onClick={() => onDrill({ ...t.patch, minReads: 0 })} title={t.hint}>
+          <button key={t.label} type="button" className={`tile tone-${t.tone}`} onClick={() => onDrill({ ...t.patch, minReads: 0 })} title={t.hint}>
+            <span className="tile-icon">{t.icon}</span>
             <span className="tile-value mono">{t.value}</span>
             <span className="tile-label">{t.label}</span>
             <span className="tile-cta">View in results →</span>
@@ -91,9 +104,9 @@ export function Summary({ report, views, onDrill }: Props) {
       </div>
 
       <div className="quality-strip" role="status">
-        <span>✓ QC completed: {fmtInt(report.qc[report.qc.length - 1].reads)} of {fmtInt(report.qc[0].reads)} reads retained</span>
+        <span><span className="qs-ok">✓ QC completed:</span> {fmtInt(report.qc[report.qc.length - 1].reads)} of {fmtInt(report.qc[0].reads)} reads retained</span>
         {flaggedControls > 0 && (
-          <span>⚠ {flaggedControls} taxa also detected in negative controls</span>
+          <span className="qs-warn">⚠ {flaggedControls} taxa also detected in negative controls</span>
         )}
         <a href="#reliability">See reliability &amp; methods →</a>
       </div>

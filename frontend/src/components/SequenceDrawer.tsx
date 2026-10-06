@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReportMethods } from '../types';
-import { DIVERGENCE_LABEL, fmtInt, fmtPct, type AsvView } from '../lib/derive';
+import { confidenceBand, DIVERGENCE_LABEL, fmtInt, fmtPct, type AsvView } from '../lib/derive';
 import { toFasta } from '../lib/export';
 import { ConfidenceBadge, DivergenceBadge, FLAG_LABEL } from './bits';
 
@@ -116,7 +116,7 @@ export function SequenceDrawer({ view: v, methods: m, isDemoData, position, onPr
                     </td>
                     <td className="ladder-bar">
                       <span className="bar-track">
-                        <span className={`bar-fill ${supported ? '' : 'unassigned'}`} style={{ width: `${c.confidence * 100}%` }} />
+                        <span className={`bar-fill ${supported ? `fill-${confidenceBand(c.confidence, m)}` : 'unassigned'}`} style={{ width: `${c.confidence * 100}%` }} />
                         <span className="cutoff" style={{ left: `${m.supportCutoff * 100}%` }} aria-hidden />
                       </span>
                     </td>

@@ -20,10 +20,10 @@ export function Reliability({ report, views, onDrill }: Props) {
     placed.filter((v) => conf.includes(v.band) && div.includes(v.divergence)).length;
 
   const cells = [
-    { conf: STRONG, div: CLOSE, title: 'Solid assignment', body: 'Supported placement, close to known references.' },
-    { conf: STRONG, div: FAR, title: 'Likely unrepresented', body: 'Confidently placed in a group, but far from any reference. Candidate for follow-up.' },
-    { conf: WEAK, div: CLOSE, title: 'Ambiguous between relatives', body: 'Close to references that disagree. The marker can\'t separate them. Not a novelty signal.' },
-    { conf: WEAK, div: FAR, title: 'Weak and distant', body: 'Little support and far from references. Treat with caution.' },
+    { conf: STRONG, div: CLOSE, tone: 'good', title: 'Solid assignment', body: 'Supported placement, close to known references.' },
+    { conf: STRONG, div: FAR, tone: 'div', title: 'Likely unrepresented', body: 'Confidently placed in a group, but far from any reference. Candidate for follow-up.' },
+    { conf: WEAK, div: CLOSE, tone: 'mid', title: 'Ambiguous between relatives', body: 'Close to references that disagree. The marker can\'t separate them. Not a novelty signal.' },
+    { conf: WEAK, div: FAR, tone: 'bad', title: 'Weak and distant', body: 'Little support and far from references. Treat with caution.' },
   ];
   const qcMax = report.qc[0].reads;
   const { high, moderate } = m.confidenceBands;
@@ -51,7 +51,7 @@ export function Reliability({ report, views, onDrill }: Props) {
                 <br /><span className="muted small">{conf === STRONG ? `≥ ${moderate.toFixed(2)}` : `${m.supportCutoff.toFixed(2)}–${moderate.toFixed(2)}`}</span>
               </span>
               {cells.filter((c) => c.conf === conf).map((c) => (
-                <button role="cell" type="button" key={c.title} className="matrix-cell"
+                <button role="cell" type="button" key={c.title} className={`matrix-cell tone-${c.tone}`}
                   onClick={() => onDrill({ conf: c.conf, div: c.div, minReads: 0 })}>
                   <strong>{c.title}</strong>
                   <span className="card-count mono">{fmtInt(count(c.conf, c.div))}</span>

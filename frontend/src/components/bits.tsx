@@ -39,7 +39,7 @@ export function Flags({ flags }: { flags: FlagCode[] }) {
   return (
     <span className="flags">
       {flags.map((f) => (
-        <span key={f} className="flag" title={FLAG_LABEL[f]}>{FLAG_SHORT[f]}</span>
+        <span key={f} className={`flag flag-${f}`} title={FLAG_LABEL[f]}>{FLAG_SHORT[f]}</span>
       ))}
     </span>
   );
@@ -146,8 +146,8 @@ export function BarRow({ label, value, max, display, onClick, emphasis, title }:
     </>
   );
   return onClick ? (
-    <button type="button" className="bar-row clickable" onClick={onClick} title={title}>{content}</button>
+    <button type="button" className="bar-row clickable" onClick={onClick} data-tip={title}>{content}</button>
   ) : (
-    <div className="bar-row" title={title}>{content}</div>
+    <div className="bar-row" data-tip={title}>{content}</div>
   );
 }

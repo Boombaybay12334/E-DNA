@@ -27,7 +27,7 @@ export function UnresolvedCallout({ views, methods, onDrill }: Props) {
       </p>
 
       <div className="cards-3">
-        <article className="card">
+        <article className="card tone-info">
           <p className="card-count mono">{fmtInt(close.length)} ASVs</p>
           <h3>Above species, close to references</h3>
           <p>Best match ≥ {mediumMinIdentity}% identity, but evidence stops above species. Usually close relatives the marker
@@ -38,7 +38,7 @@ export function UnresolvedCallout({ views, methods, onDrill }: Props) {
           </button>
         </article>
 
-        <article className="card card-key">
+        <article className="card tone-div">
           <p className="card-count mono">{fmtInt(unrep.length)} ASVs</p>
           <h3>Possibly unrepresented in the reference DB</h3>
           <p>Placed with support at a higher rank, but best match is &lt; {mediumMinIdentity}% identity to every reference.
@@ -47,7 +47,7 @@ export function UnresolvedCallout({ views, methods, onDrill }: Props) {
           <button type="button" onClick={() => onDrill({ preset: 'unrepresented', minReads: 0 })}>View these →</button>
         </article>
 
-        <article className="card">
+        <article className="card tone-bad">
           <p className="card-count mono">{fmtInt(unresolved.length)} ASVs</p>
           <h3>Unresolved</h3>
           <p>No rank supported, not even Domain. Possible non-target amplification, sequencing artefact, or a very divergent lineage.</p>
