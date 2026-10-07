@@ -27,6 +27,15 @@ Accessions are `MOCK…` placeholders, and the page shows a "Demo data" banner w
 All workspace state (filters, view, sort, page, open ASV) is in the URL, so any view can be shared.
 In the detail panel, `↑/↓` (or `j/k`) steps through the current filtered list.
 
+## Sample types (water, soil, sediment)
+
+One report, several environments. `SampleContext.sampleType` selects which metadata the header shows
+(`details` and `parameters` are lists of labelled rows the pipeline/LIMS supplies per type). Every analysis section
+(summary, composition, unresolved, results, reliability, sequence detail) is identical for all types and driven only by
+`Report`. Composition groups come from the data, so soil can show Fungi, Bacteria, Plantae, Metazoa, Protists, etc. without code changes.
+The selector sets `?type=soil|sediment` (water is the default). In the real product the type comes from the sample record.
+Demo definitions per type are in `src/data/demoSamples.ts`.
+
 ## Data contract (`src/types.ts`)
 
 The UI only **derives** from what the pipeline returns (`src/lib/derive.ts`). It never infers a classification.

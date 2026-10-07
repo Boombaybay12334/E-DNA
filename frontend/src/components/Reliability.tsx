@@ -111,13 +111,13 @@ export function Reliability({ report, views, onDrill }: Props) {
 
       <div className="subsection">
         <h3>Methods & provenance</h3>
-        <dl className="kv">
-          <dt>Marker</dt><dd>{m.marker}</dd>
-          <dt>Primers</dt><dd>{m.primers}</dd>
-          <dt>Reference DB</dt><dd>{m.referenceDb}</dd>
-          <dt>Classifier</dt><dd>{m.classifier}</dd>
-          <dt>Taxonomic ranks</dt><dd>{m.ranks.join(' › ')} <span className="muted small">(from the reference DB's taxonomy)</span></dd>
-          <dt>Pipeline</dt><dd className="mono">{m.pipelineVersion}</dd>
+        <dl className="kv kv-grid">
+          <div><dt>Marker</dt><dd>{m.marker}</dd></div>
+          <div><dt>Primers</dt><dd>{m.primers}</dd></div>
+          <div><dt>Reference DB</dt><dd>{m.referenceDb}</dd></div>
+          <div><dt>Classifier</dt><dd>{m.classifier}</dd></div>
+          <div><dt>Taxonomic ranks</dt><dd>{m.ranks.join(' › ')} <span className="muted small">(from the reference DB's taxonomy)</span></dd></div>
+          <div><dt>Pipeline</dt><dd className="mono">{m.pipelineVersion}</dd></div>
         </dl>
       </div>
     </Section>

@@ -7,13 +7,15 @@ import { BarRow, Section, Toggle } from './bits';
 interface Props {
   views: AsvView[];
   ranks: string[];
+  /** Rank shown first; falls back to the top rank if the reference taxonomy doesn't have it. */
+  initialRank: string;
   onDrill: (patch: Partial<Filters>) => void;
 }
 
 const TOP_N = 8;
 
-export function Composition({ views, ranks, onDrill }: Props) {
-  const [rankIdx, setRankIdx] = useState(ranks.indexOf('Phylum'));
+export function Composition({ views, ranks, initialRank, onDrill }: Props) {
+  const [rankIdx, setRankIdx] = useState(Math.max(0, ranks.indexOf(initialRank)));
   const [measure, setMeasure] = useState<'asvs' | 'reads'>('reads');
   const [showAll, setShowAll] = useState(false);
 

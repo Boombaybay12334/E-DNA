@@ -1,4 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
+import type { Report, SampleType } from './types';
+import { DEFAULT_SAMPLE_TYPE, readSampleType, sampleTypeInfo } from './lib/sampleTypes';
 import { buildMockReport } from './data/mockReport';
 import { applyFilters, defaultFilters, deriveViews, type AsvView, type Filters } from './lib/derive';
 import { useWorkspaceState, type WorkspaceState } from './lib/urlState';
@@ -15,16 +17,35 @@ import { SectionNav, type NavItem } from './components/SectionNav';
 import { AppSidebar } from './components/AppSidebar';
 
 // TODO: replace with a fetch of the pipeline's report JSON (same shape as `Report`).
-const report = buildMockReport();
-const views = deriveViews(report);
-const DEFAULTS: WorkspaceState = {
-  filters: defaultFilters(report.methods),
-  view: 'table',
-  groupBy: 'asv',
-  sort: { key: 'reads', dir: 'desc' },
-  page: 0,
-  asv: null,
-};
+// Built lazily, once per sample type, so switching back is instant.
+interface Bundle {
+  report: Report;
+  views: AsvView[];
+  defaults: WorkspaceState;
+  byId: Map<string, AsvView>;
+}
+const bundles: Partial<Record<SampleType, Bundle>> = {};
+function getBundle(type: SampleType): Bundle {
+  let b = bundles[type];
+  if (!b) {
+    const report = buildMockReport(type);
+    const views = deriveViews(report);
+    b = bundles[type] = {
+      report,
+      views,
+      byId: new Map(views.map((v) => [v.asv.id, v])),
+      defaults: {
+        filters: defaultFilters(report.methods),
+        view: 'table',
+        groupBy: 'asv',
+        sort: { key: 'reads', dir: 'desc' },
+        page: 0,
+        asv: null,
+      },
+    };
+  }
+  return b;
+}
 
 const NAV: NavItem[] = [
   { id: 'header', label: 'Sample' },
@@ -55,14 +76,29 @@ function sortViews(rows: AsvView[], key: WorkspaceState['sort']['key'], dir: 'as
   });
 }
 
+/**
+ * The sample type chooses which report is shown. The page below is the same component tree for every type,
+ * keyed by type so filters, view and the open ASV reset (they refer to ASVs of the other sample).
+ */
 export function App() {
+  const [type, setType] = useState<SampleType>(readSampleType);
+  const changeType = useCallback((next: SampleType) => {
+    const qs = next === DEFAULT_SAMPLE_TYPE ? '' : `?type=${next}`;
+    window.history.replaceState(null, '', `${window.location.pathname}${qs}`);
+    setType(next);
+    window.scrollTo({ top: 0 });
+  }, []);
+  return <ReportPage key={type} type={type} onSampleType={changeType} />;
+}
+
+function ReportPage({ type, onSampleType }: { type: SampleType; onSampleType: (t: SampleType) => void }) {
+  const { report, views, byId, defaults: DEFAULTS } = getBundle(type);
   const { state, setFilters, update, setState } = useWorkspaceState(DEFAULTS);
 
   const rows = useMemo(
     () => sortViews(applyFilters(views, state.filters), state.sort.key, state.sort.dir),
-    [state.filters, state.sort],
+    [views, state.filters, state.sort],
   );
-  const byId = useMemo(() => new Map(views.map((v) => [v.asv.id, v])), []);
   const open = state.asv ? byId.get(state.asv) ?? null : null;
   const index = open ? rows.indexOf(open) : -1;
 
@@ -70,7 +106,7 @@ export function App() {
   const drill = useCallback((patch: Partial<Filters>) => {
     setState((s) => ({ ...s, filters: { ...DEFAULTS.filters, ...patch }, view: 'table', groupBy: 'asv', page: 0 }));
     document.getElementById('results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [setState]);
+  }, [setState, DEFAULTS]);
 
   const openAsv = useCallback((id: string) => update({ asv: id }), [update]);
   const step = useCallback((delta: number) => {
@@ -120,9 +156,10 @@ export function App() {
           <SectionNav items={NAV} active={active} navRef={navRef} />
   
           <main>
-            <ReportHeader report={report} />
+            <ReportHeader report={report} onSampleType={onSampleType} />
             <Summary report={report} views={views} onDrill={drill} />
-            <Composition views={views} ranks={report.methods.ranks} onDrill={drill} />
+            <Composition views={views} ranks={report.methods.ranks} initialRank={sampleTypeInfo(type).compositionRank}
+              onDrill={drill} />
             <UnresolvedCallout views={views} methods={report.methods} onDrill={drill} />
             <ResultsWorkspace views={views} rows={rows} methods={report.methods} sampleId={report.sample.sampleId}
               state={state} defaults={DEFAULTS.filters} setFilters={setFilters} update={update} onOpen={openAsv} />

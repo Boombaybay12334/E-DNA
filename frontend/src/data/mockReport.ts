@@ -1,13 +1,16 @@
-// Deterministic DEMO dataset. Not real observations: taxa are plausible for a
-// bathypelagic Arabian Sea sample, but reads, sequences, accessions and scores are synthetic.
+// Deterministic DEMO datasets for each sample type (water, soil, sediment). Not real observations: taxa are
+// plausible for each environment, but reads, sequences, accessions and scores are synthetic.
+// The analysis is identical for every type; only the reference library, methods and sample metadata differ
+// (see demoSamples.ts).
 // Replace `buildMockReport()` with a fetch of the pipeline's output once it exists.
 
-import type { Asv, FlagCode, Reason, RankCall, ReferenceHit, Report, ReportMethods } from '../types';
+import type { Asv, FlagCode, Reason, RankCall, ReferenceHit, Report, ReportMethods, SampleType } from '../types';
+import { SEDIMENT_LIBRARY, SEDIMENT_SAMPLE, SOIL_LIBRARY, SOIL_SAMPLE, WATER_SAMPLE } from './demoSamples';
 
 const RANKS = ['Domain', 'Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species'];
 
 // [lineage (Kingdom..Species, Domain is always Eukaryota), relative weight]
-const LIBRARY: [string, number][] = [
+const WATER_LIBRARY: [string, number][] = [
   ['Metazoa;Arthropoda;Hexanauplia;Calanoida;Metridinidae;Pleuromamma;Pleuromamma abdominalis', 9],
   ['Metazoa;Arthropoda;Hexanauplia;Calanoida;Metridinidae;Pleuromamma;Pleuromamma xiphias', 6],
   ['Metazoa;Arthropoda;Hexanauplia;Calanoida;Eucalanidae;Subeucalanus;Subeucalanus subcrassus', 7],
@@ -47,7 +50,7 @@ const LIBRARY: [string, number][] = [
 
 const CONTAMINANTS = new Set(['Homo sapiens', 'Bos taurus']);
 
-const METHODS: ReportMethods = {
+const BASE_METHODS: ReportMethods = {
   marker: 'COI (mitochondrial cytochrome c oxidase I), ~313 bp',
   primers: 'mlCOIintF / jgHCO2198',
   referenceDb: 'MIDORI2-style COI reference (demo stand-in)',
@@ -84,13 +87,25 @@ function mulberry32(seed: number) {
   };
 }
 
-export function buildMockReport(asvCount = 4812, seed = 20260312): Report {
+const DEMOS = {
+  water: { library: WATER_LIBRARY, demo: WATER_SAMPLE },
+  soil: { library: SOIL_LIBRARY, demo: SOIL_SAMPLE },
+  sediment: { library: SEDIMENT_LIBRARY, demo: SEDIMENT_SAMPLE },
+};
+
+export function buildMockReport(type: SampleType = 'water'): Report {
+  const { library: LIBRARY, demo } = DEMOS[type];
+  const METHODS: ReportMethods = { ...BASE_METHODS, ...demo.methods };
+  const { asvCount, seed } = demo;
   const rng = mulberry32(seed);
   const between = (a: number, b: number) => a + rng() * (b - a);
   const normal = () => Math.sqrt(-2 * Math.log(1 - rng())) * Math.cos(2 * Math.PI * rng());
   const round = (x: number, dp: number) => Math.round(x * 10 ** dp) / 10 ** dp;
 
-  const lineages = LIBRARY.map(([l]) => ['Eukaryota', ...l.split(';')]);
+  const lineages = LIBRARY.map(([l]) => {
+    const parts = l.split(';');
+    return parts.length === RANKS.length ? parts : ['Eukaryota', ...parts];
+  });
   const totalWeight = LIBRARY.reduce((s, [, w]) => s + w, 0);
   const pickLineage = () => {
     let r = rng() * totalWeight;
@@ -204,7 +219,7 @@ export function buildMockReport(asvCount = 4812, seed = 20260312): Report {
 
     const flags: FlagCode[] = [];
     if (contaminant) flags.push('LIKELY_CONTAMINANT');
-    if (d === 7 && ['Homo sapiens', 'Bos taurus', 'Oikopleura dioica'].includes(species)) flags.push('IN_NEGATIVE_CONTROL');
+    if (d === 7 && demo.negControlSpecies.includes(species)) flags.push('IN_NEGATIVE_CONTROL');
     if (reads < METHODS.minReadsDefault) flags.push('LOW_READS');
 
     const len = 313 + (rng() < 0.1 ? Math.round(normal() * 3) : 0);
@@ -221,21 +236,8 @@ export function buildMockReport(asvCount = 4812, seed = 20260312): Report {
 
   return {
     isDemoData: true,
-    generatedAt: '2026-10-06T09:30:00Z',
-    sample: {
-      sampleId: 'DEMO-AS-014',
-      project: 'Demo: Arabian Sea mesopelagic–bathypelagic transect',
-      latitude: 15.42,
-      longitude: 68.1,
-      locality: 'Arabian Sea, off-shelf',
-      collectedAt: '2026-03-12T04:20:00Z',
-      depthM: 1850,
-      depthZone: 'Bathypelagic',
-      environment: 'Open ocean water column; oxygen minimum zone below',
-      sampleType: 'Seawater (Niskin bottle)',
-      volumeFiltered: '5 L',
-      filter: '0.22 µm Sterivex',
-    },
+    generatedAt: demo.generatedAt,
+    sample: demo.sample,
     methods: METHODS,
     qc: [
       { label: 'Raw read pairs', reads: Math.round(assigned / 0.58) },
@@ -244,11 +246,7 @@ export function buildMockReport(asvCount = 4812, seed = 20260312): Report {
       { label: 'After merging + denoising', reads: Math.round(assigned / 0.93) },
       { label: 'After chimera removal (in ASVs)', reads: assigned },
     ],
-    controls: [
-      { control: 'Extraction blank', taxon: 'Homo sapiens', reads: 412 },
-      { control: 'PCR blank', taxon: 'Bos taurus', reads: 38 },
-      { control: 'Field blank', taxon: 'Oikopleura dioica', reads: 12 },
-    ],
+    controls: demo.controls,
     asvs,
   };
 }

@@ -23,7 +23,9 @@ export function UnresolvedCallout({ views, methods, onDrill }: Props) {
   return (
     <Section id="unresolved" title="Unresolved & possibly unrepresented sequences">
       <p className="lede">
-        Many ASVs cannot be named to species. This report separates three situations, because they mean different things:
+        Many ASVs cannot be named to species. This report separates three situations, because they mean different things.
+        <strong> Low confidence</strong> means the classifier is unsure.{' '}
+        <strong>Possibly unrepresented</strong> means the sequence is far from every reference, whatever the confidence.
       </p>
 
       <div className="cards-3">
@@ -42,7 +44,7 @@ export function UnresolvedCallout({ views, methods, onDrill }: Props) {
           <p className="card-count mono">{fmtInt(unrep.length)} ASVs</p>
           <h3>Possibly unrepresented in the reference DB</h3>
           <p>Placed with support at a higher rank, but best match is &lt; {mediumMinIdentity}% identity to every reference.
-            May be a lineage missing from the database. Could also be an artefact (e.g. a pseudogene).</p>
+            A reference database gap, or a possible novel lineage. Could also be an artefact (e.g. a pseudogene).</p>
           <p className="small"><strong>Needs follow-up. Not evidence of a new species.</strong></p>
           <button type="button" onClick={() => onDrill({ preset: 'unrepresented', minReads: 0 })}>View these →</button>
         </article>

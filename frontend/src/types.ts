@@ -76,19 +76,31 @@ export interface ReportMethods {
   minReadsDefault: number;
 }
 
+/** Environment the sample was taken from. Drives which metadata rows are shown, never the analysis. */
+export type SampleType = 'water' | 'soil' | 'sediment';
+
+/** One labelled metadata row. Values are display strings so each sample type can word its own. */
+export interface MetaField {
+  label: string;
+  value: string;
+  mono?: boolean;
+}
+
 export interface SampleContext {
   sampleId: string;
   project: string;
+  sampleType: SampleType;
   latitude: number;
   longitude: number;
   locality: string;
   collectedAt: string; // ISO, UTC
-  depthM: number;
-  depthZone: string;
-  environment: string;
-  sampleType: string;
-  volumeFiltered: string;
-  filter: string;
+  /**
+   * Sample-type-specific rows, in display order (e.g. water body + water depth, or site + soil depth + land use).
+   * The pipeline/LIMS decides which fields exist for each type; the UI just renders them.
+   */
+  details: MetaField[];
+  /** Measured parameters (pH, moisture, temperature...). Optional: empty when none were recorded. */
+  parameters: MetaField[];
 }
 
 export interface Report {

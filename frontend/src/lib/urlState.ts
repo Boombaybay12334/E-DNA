@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { ConfidenceBand, DivergenceBand, Filters, PresetId } from './derive';
+import { DEFAULT_SAMPLE_TYPE, readSampleType } from './sampleTypes';
 
 export type SortKey = 'id' | 'name' | 'rank' | 'confidence' | 'divergence' | 'reads' | 'identity';
 
@@ -46,6 +47,9 @@ function parse(search: string, defaults: WorkspaceState): WorkspaceState {
 
 function serialize(s: WorkspaceState, defaults: WorkspaceState): string {
   const p = new URLSearchParams();
+  // Sample type belongs to the report, not the workspace, but must survive every workspace write.
+  const type = readSampleType();
+  if (type !== DEFAULT_SAMPLE_TYPE) p.set('type', type);
   const f = s.filters;
   const d = defaults.filters;
   if (f.q) p.set('q', f.q);
