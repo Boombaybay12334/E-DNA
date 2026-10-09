@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Technical Specification: Downstream Biodiversity Analytics & Evaluation Engine</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <!-- MathJax for rendering math formulas -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <style>
+    :root {
+      --bg-primary: #0a0f1d;
+      --bg-secondary: #11192e;
+      --bg-card: rgba(22, 33, 62, 0.7);
+      --bg-card-hover: rgba(28, 43, 80, 0.85);
+      --border-subtle: rgba(79, 110, 168, 0.22);
+      --border-accent: rgba(56, 189, 248, 0.35);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent-cyan: #38bdf8;
+      --accent-emerald: #34d399;
+      --accent-amber: #fbbf24;
+      --accent-rose: #fb7185;
+      --accent-violet: #a78bfa;
+      --math-bg: #0d1527;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.65;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Ambient background gradient glow */
+    body::before {
+      content: "";
+      position: fixed;
+      top: -200px;
+      right: -200px;
+      width: 650px;
+      height: 650px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, rgba(10, 15, 29, 0) 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      bottom: -150px;
+      left: -150px;
+      width: 550px;
+      height: 550px;
+      background: radial-gradient(circle, rgba(52, 211, 153, 0.06) 0%, rgba(10, 15, 29, 0) 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 290px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-subtle);
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      padding: 2rem 1.25rem;
+      overflow-y: auto;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .brand-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-cyan);
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      margin-bottom: 1rem;
+    }
+
+    .sidebar-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 1.5rem;
+      line-height: 1.35;
+    }
+
+    .nav-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .nav-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 0.6rem;
+      padding-left: 0.5rem;
+    }
+
+    .nav-list {
+      list-style: none;
+    }
+
+    .nav-link {
+      display: block;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.85rem;
+      padding: 0.45rem 0.65rem;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+      margin-bottom: 0.2rem;
+    }
+
+    .nav-link:hover {
+      color: var(--accent-cyan);
+      background: rgba(56, 189, 248, 0.08);
+      transform: translateX(3px);
+    }
+
+    /* Main Content */
+    .content {
+      flex: 1;
+      max-width: 960px;
+      padding: 3rem 3.5rem 6rem;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    header {
+      margin-bottom: 3.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 2rem;
+    }
+
+    .doc-badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--accent-emerald);
+      background: rgba(52, 211, 153, 0.12);
+      border: 1px solid rgba(52, 211, 153, 0.25);
+      padding: 0.3rem 0.75rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #ffffff 40%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+    }
+
+    h2 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-top: 3.5rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 0.6rem;
+    }
+
+    h2 .section-num {
+      color: var(--accent-cyan);
+      font-size: 1.2rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    h4 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    p {
+      margin-bottom: 1.15rem;
+      color: #cbd5e1;
+      font-size: 0.96rem;
+    }
+
+    /* Comparison Grids */
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      margin: 1.5rem 0 2.5rem;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 1.35rem;
+      backdrop-filter: blur(10px);
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .card:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-2px);
+    }
+
+    .card.limitation {
+      border-left: 3px solid var(--accent-rose);
+    }
+
+    .card.improvement {
+      border-left: 3px solid var(--accent-emerald);
+    }
+
+    .card-header {
+      font-weight: 700;
+      font-size: 1rem;
+      color: #ffffff;
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card.limitation .card-header {
+      color: #fda4af;
+    }
+
+    .card.improvement .card-header {
+      color: #6ee7b7;
+    }
+
+    .card p {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .card ul,
+    .card ol {
+      margin-left: 1.25rem;
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .card li {
+      margin-bottom: 0.35rem;
+    }
+
+    /* Workflow Flowchart Block */
+    .flow-container {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 1.75rem;
+      margin: 2rem 0;
+    }
+
+    .flow-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      position: relative;
+    }
+
+    .flow-step {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 1.1rem 1.4rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+    }
+
+    .flow-step-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .flow-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .flow-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #ffffff;
+    }
+
+    .flow-math {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--accent-emerald);
+      background: rgba(52, 211, 153, 0.1);
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+    }
+
+    .flow-arrow {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      line-height: 1;
+      margin: -0.25rem 0;
+    }
+
+    /* Formula Box & Deep Dives */
+    .formula-box {
+      background: var(--math-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1.25rem 0 1.75rem;
+      position: relative;
+    }
+
+    .formula-display {
+      font-size: 1.15rem;
+      color: #f8fafc;
+      overflow-x: auto;
+      padding: 0.85rem 0;
+      text-align: center;
+      border-bottom: 1px dashed var(--border-subtle);
+      margin-bottom: 1rem;
+    }
+
+    .formula-meta {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+      font-size: 0.88rem;
+    }
+
+    .meta-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .meta-label {
+      font-weight: 700;
+      color: var(--accent-cyan);
+      min-width: 140px;
+      flex-shrink: 0;
+    }
+
+    .meta-content {
+      color: var(--text-secondary);
+    }
+
+    .param-list {
+      margin-top: 0.5rem;
+      margin-left: 1.25rem;
+      color: var(--text-secondary);
+      font-size: 0.86rem;
+    }
+
+    .param-list li {
+      margin-bottom: 0.35rem;
+    }
+
+    /* Substrate Guardrails Callout */
+    .callout-box {
+      background: rgba(251, 191, 36, 0.05);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin: 1.5rem 0;
+    }
+
+    .callout-title {
+      color: var(--accent-amber);
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* MathJax Specific Tweaks */
+    mjx-container {
+      outline: none !important;
+      color: #f1f5f9 !important;
+    }
+
+    @media (max-width: 1024px) {
+      .sidebar {
+        display: none;
+      }
+
+      .content {
+        padding: 2rem 1.5rem;
+      }
+
+      .card-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Sidebar Table of Contents -->
+  <aside class="sidebar">
+    <div class="brand-tag">🧬 eDNA Analytics</div>
+    <div class="sidebar-title">Biodiversity Engine Specification</div>
+
+    <div class="nav-group">
+      <div class="nav-label">1. Pipeline Overview</div>
+      <ul class="nav-list">
+        <li><a href="#limitations" class="nav-link">Traditional Limitations</a></li>
+        <li><a href="#improved-approach" class="nav-link">Our Improved Approach</a></li>
+        <li><a href="#guardrails" class="nav-link">Substrate Guardrails</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">2. Mathematical Engine</div>
+      <ul class="nav-list">
+        <li><a href="#pipeline-architecture" class="nav-link">Architecture Flow</a></li>
+        <li><a href="#phase1" class="nav-link">Phase 1: QC & Proportions</a></li>
+        <li><a href="#phase2" class="nav-link">Phase 2: Alpha-Diversity</a></li>
+        <li><a href="#phase3" class="nav-link">Phase 3: Beta-Diversity</a></li>
+        <li><a href="#phase4" class="nav-link">Phase 4: ML Reliability</a></li>
+      </ul>
+    </div>
+  </aside>
+
+  <!-- Main Document Container -->
+  <main class="content">
+    <header>
+      <div class="doc-badge">TECHNICAL SPECIFICATION v1.0</div>
+      <h1>Downstream Biodiversity Analytics &amp; Evaluation Engine</h1>
+      <p class="subtitle">Mathematical Formulations, Novelty Detection, Community Synthesis, and Environmental
+        Guardrails for eDNA</p>
+    </header>
+
+    <!-- SECTION 1 -->
+    <section id="section-1">
+      <h2><span class="section-num">1.</span> Why Traditional Pipelines Fail &amp; How We Improve Them</h2>
+
+      <h3 id="limitations">Current Limitations of Traditional Pipelines</h3>
+      <div class="card-grid">
+        <div class="card limitation">
+          <div class="card-header">⚠️ Uncalibrated Overconfidence</div>
+          <p>Traditional taxonomic classifiers (naive BLAST, RDP, flat multiclass) assume every environmental sequence
+            already exists in the reference library (closed-world assumption).</p>
+          <p>When encountering rare, unsequenced, or dark taxa, they force assignment to the nearest neighbor with
+            falsely elevated confidence scores.</p>
+        </div>
+
+        <div class="card limitation">
+          <div class="card-header">🚫 All-or-Nothing Bottleneck</div>
+          <p>Pipelines use rigid similarity thresholds (e.g. 97%). Sequences failing the threshold are discarded as
+            "unassigned".</p>
+          <p>This throws away evolutionary conservation that could reliably pinpoint family or genus ancestry.</p>
+        </div>
+
+        <div class="card limitation">
+          <div class="card-header">📊 No Community Synthesis</div>
+          <p>Workflows stop at flat sequence tables. They don't compute whether an ecosystem is balanced, collapsing, or
+            dominated by invasive blooms.</p>
+          <p>Requires cumbersome manual export into external R software (vegan, phyloseq).</p>
+        </div>
+
+        <div class="card limitation">
+          <div class="card-header">🧬 Biomass Conflation</div>
+          <p>Raw read counts are conflated with organism biomass, ignoring gene copy number variance, shedding rate
+            differences, and PCR amplification skew.</p>
+        </div>
+      </div>
+
+      <h3 id="improved-approach">Our Improved Approach</h3>
+      <div class="card-grid">
+        <div class="card improvement">
+          <div class="card-header">🌲 Graceful Hierarchical Back-Off</div>
+          <p>Evaluates confidence dynamically across the full Linnaean hierarchy:</p>
+          <p><code>Domain → Phylum → Class → Order → Family → Genus → Species</code></p>
+          <p>If species confidence is insufficient, it automatically steps back to the deepest ancestral rank that is
+            mathematically validated.</p>
+        </div>
+
+        <div class="card improvement">
+          <div class="card-header">🔍 Novelty &amp; "Dark Taxa" Isolation</div>
+          <p>Isolates high-uncertainty embeddings that fall outside known reference clusters. Flags them as
+            <strong>Candidate Novel Lineages</strong> without distorting known biodiversity metrics.</p>
+        </div>
+
+        <div class="card improvement">
+          <div class="card-header">⚡ Automated Ecological Engine</div>
+          <p>Transforms classified ASV counts with noise suppression, normalizes to relative abundance vectors on the
+            probability simplex, and automates alpha/beta diversity computation.</p>
+        </div>
+
+        <div class="card improvement">
+          <div class="card-header">🛡️ Substrate-Aware Guardrails</div>
+          <p>Accounts for environmental transport dynamics:</p>
+          <ul>
+            <li><strong>Aquatic:</strong> Tidal/river drift warnings (regional presence vs. pinpoint spot).</li>
+            <li><strong>Soil:</strong> Mineral-bound relic DNA persistence indicators.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2 -->
+    <section id="section-2">
+      <h2><span class="section-num">2.</span> Mathematical Formulations &amp; Algorithms</h2>
+
+      <!-- Pipeline Architecture Flow -->
+      <div id="pipeline-architecture" class="flow-container">
+        <h3 style="margin-top:0; color:#fff; font-size:1.1rem; margin-bottom:1rem;">Pipeline Execution Hierarchy</h3>
+        <div class="flow-steps">
+          <div class="flow-step">
+            <div class="flow-step-left">
+              <span class="flow-badge">INPUT</span>
+              <span class="flow-title">Raw ASV Read Counts ($n_i$)</span>
+            </div>
+            <span class="flow-math">Depth N = \sum n_k</span>
+          </div>
+
+          <div class="flow-arrow">▼</div>
+
+          <div class="flow-step">
+            <div class="flow-step-left">
+              <span class="flow-badge">PHASE 1</span>
+              <span class="flow-title">Noise Floor Filtering &amp; Simplex Normalization</span>
+            </div>
+            <span class="flow-math">p_i = \tilde{n}_i / \sum \tilde{n}_k</span>
+          </div>
+
+          <div class="flow-arrow">▼</div>
+
+          <div class="flow-step">
+            <div class="flow-step-left">
+              <span class="flow-badge">PHASE 2</span>
+              <span class="flow-title">Alpha-Diversity (Richness, Shannon $H'$, Simpson $D$, Evenness $J'$)</span>
+            </div>
+            <span class="flow-math">H' = -\sum p_i \ln(p_i)</span>
+          </div>
+
+          <div class="flow-arrow">▼</div>
+
+          <div class="flow-step">
+            <div class="flow-step-left">
+              <span class="flow-badge">PHASE 3</span>
+              <span class="flow-title">Beta-Diversity (Bray-Curtis $BC_{jk}$, Jaccard Distance)</span>
+            </div>
+            <span class="flow-math">BC_{jk} \in [0, 1]</span>
+          </div>
+
+          <div class="flow-arrow">▼</div>
+
+          <div class="flow-step">
+            <div class="flow-step-left">
+              <span class="flow-badge">PHASE 4</span>
+              <span class="flow-title">ML Reliability (ECE, Over-Classification Rate $E_{\text{over}}$)</span>
+            </div>
+            <span class="flow-math">\text{ECE} &lt; 0.05</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHASE 1 -->
+      <h3 id="phase1">Phase 1: Data Filtering &amp; Relative Abundance Transformation</h3>
+      <p>Raw sequencing libraries contain low-abundance stochastic artifacts, index hoppers, and primer dimers. Before
+        community metrics are derived, reads must undergo noise suppression and simplex normalization.</p>
+
+      <h4>1. Low-Abundance Noise Thresholding</h4>
+      <div class="formula-box">
+        <div class="formula-display">
+          $$\tilde{n}_i = \begin{cases} n_i & \text{if } \frac{n_i}{N} \ge \tau \\ 0 & \text{if } \frac{n_i}{N} < \tau
+            \end{cases}$$ </div>
+            <div class="formula-meta">
+              <ul class="param-list">
+                <li>$n_i$: Raw sequence read count assigned to taxon/ASV $i$.</li>
+                <li>$N = \sum_{k=1}^M n_k$: Total sequencing depth of the sample.</li>
+                <li>$\tau$: Noise-floor filter threshold (default: $\tau = 0.001$, or $0.1\%$).</li>
+              </ul>
+            </div>
+        </div>
+
+        <h4>2. Relative Abundance Normalization ($p_i$)</h4>
+        <div class="formula-box">
+          <div class="formula-display">
+            $$p_i = \frac{\tilde{n}_i}{\sum_{k=1}^{S} \tilde{n}_k}$$
+          </div>
+          <div class="formula-meta">
+            <ul class="param-list">
+              <li>$p_i$: Proportion of sequencing reads attributed to taxon $i$.</li>
+              <li>$S$: Total number of distinct taxa with non-zero counts remaining post-filter.</li>
+              <li>Satisfies the unit probability simplex condition: $\sum_{i=1}^S p_i = 1.0$, with $p_i > 0$.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- PHASE 2 -->
+        <h3 id="phase2">Phase 2: Alpha-Diversity Formulations</h3>
+        <p>Alpha diversity quantifies biological variety, dominance, and structural distribution within a single local
+          sampling site.</p>
+
+        <h4>1. Species Richness ($S$)</h4>
+        <div class="formula-box">
+          <div class="formula-display">
+            $$S = \sum_{i=1}^{M} \mathbb{I}(p_i > 0)$$
+          </div>
+          <div class="formula-meta">
+            <div class="meta-row">
+              <span class="meta-label">Technical Meaning:</span>
+              <span class="meta-content">Absolute count of distinct taxonomic entities with sequencing depth above noise
+                threshold $\tau$.</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Ecological Value:</span>
+              <span class="meta-content">Baseline community diversity. Depressed values flag biologically degraded or
+                chemically stressed habitats.</span>
+            </div>
+          </div>
+        </div>
+
+        <h4>2. Shannon-Wiener Diversity Index ($H'$)</h4>
+        <div class="formula-box">
+          <div class="formula-display">
+            $$H' = -\sum_{i=1}^{S} p_i \ln(p_i)$$
+          </div>
+          <div class="formula-meta">
+            <div class="meta-row">
+              <span class="meta-label">Technical Meaning:</span>
+              <span class="meta-content">Information entropy quantifying uncertainty in predicting the taxonomic
+                identity of a randomly sampled read.</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Interpretation:</span>
+              <span class="meta-content">Typical environmental range: <strong>1.5 to 3.5</strong>. Values
+                <code>&gt; 3.0</code> indicate balanced, complex communities; values <code>&lt; 1.5</code> reveal severe
+                monoculture skew or ecosystem stress.</span>
+            </div>
+          </div>
+        </div>
+
+        <h4>3. Simpson’s Dominance ($D$) &amp; Gini-Simpson Index ($1 - D$)</h4>
+        <div class="formula-box">
+          <div class="formula-display">
+            $$\text{Simpson's Index: } D = \sum_{i=1}^{S} p_i^2 \qquad \big|\qquad \text{Gini-Simpson: } 1 - D = 1 -
+            \sum_{i=1}^{S} p_i^2$$
+          </div>
+          <div class="formula-meta">
+            <div class="meta-row">
+              <span class="meta-label">Technical Meaning:</span>
+              <span class="meta-content">$D$ is the probability that two randomly drawn reads belong to the
+                <em>same</em> species; $1-D$ is the probability they belong to <em>different</em> species.</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Ecological Value:</span>
+              <span class="meta-content">$D \to 1.0$ indicates strong monoculture/invasive domination. $1-D \to 1.0$
+                indicates a highly equitable community structure.</span>
+            </div>
+          </div>
+        </div>
+
+        <h4>4. Pielou’s Evenness Index ($J'$)</h4>
+        <div class="formula-box">
+          <div class="formula-display">
+            $$J' = \frac{H'}{\ln(S)} \quad \text{for } S > 1$$
+          </div>
+          <div class="formula-meta">
+            <div class="meta-row">
+              <span class="meta-label">Technical Meaning:</span>
+              <span class="meta-content">Normalizes Shannon entropy against theoretical maximum diversity $H'_{\max} =
+                \ln(S)$. Bounded on $[0, 1]$.</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Interpretation:</span>
+              <span class="meta-content">$J' \approx 1.0$ reflects equal abundance among all taxa. $J' < 0.5$ signals
+                  severe population asymmetry.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- PHASE 3 -->
+        <h3 id="phase3">Phase 3: Beta-Diversity (Cross-Sample Dissimilarity)</h3>
+        <p>Beta diversity measures compositional turnover between distinct spatial sites or temporal monitoring epochs
+          (Sample $j$ vs. Sample $k$).</p>
+
+        <h4>1. Bray-Curtis Dissimilarity ($BC_{jk}$)</h4>
+        <div class="formula-box">
+          <div class="formula-display">
+            $$BC_{jk} = \frac{\sum_{i=1}^{S} |n_{ij} - n_{ik}|}{\sum_{i=1}^{S} (n_{ij} + n_{ik})}$$
+          </div>
+          <div class="formula-meta">
+            <div class="meta-row">
+              <span class="meta-label">Technical Meaning:</span>
+              <span class="meta-content">Abundance-weighted compositional dissimilarity bounded on $[0.0, 1.0]$.</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Interpretation:</span>
+              <span class="meta-content">$BC_{jk} = 0.0$ signifies identical community structures; $BC_{jk} = 1.0$
+                signifies zero shared species.</span>
+            </div>
+          </div>
+        </div>
+
+        <h4>2. Jaccard Dissimilarity ($J_{\text{dissim}}$)</h4>
+        <div class="formula-box">
+          <div class="formula-display">
+            $$J_{\text{dissim}} = \frac{b + c}{a + b + c}$$
+          </div>
+          <div class="formula-meta">
+            <ul class="param-list">
+              <li>$a$: Count of shared species present in both samples.</li>
+              <li>$b$: Count of species unique to Sample $j$.</li>
+              <li>$c$: Count of species unique to Sample $k$.</li>
+              <li>Presence/absence metric measuring turnover independent of PCR amplification amplification bias.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- PHASE 4 -->
+        <h3 id="phase4">Phase 4: ML Classifier Reliability &amp; Novelty Metrics</h3>
+        <p>Assesses classifier calibration quality and evaluates how safely the model handles unseen evolutionary
+          clades.</p>
+
+        <h4>1. Expected Calibration Error (ECE)</h4>
+        <div class="formula-box">
+          <div class="formula-display">
+            $$\text{ECE} = \sum_{m=1}^{M} \frac{|B_m|}{N_{\text{eval}}} \left| \text{acc}(B_m) - \text{conf}(B_m)
+            \right|$$
+          </div>
+          <div class="formula-meta">
+            <ul class="param-list">
+              <li>Partition confidence $[0, 1]$ into $M$ bins $B_1, \ldots, B_M$.</li>
+              <li>$|B_m|$: Count of predictions in bin $B_m$; $N_{\text{eval}}$: Total evaluated sequences.</li>
+              <li>$\text{acc}(B_m), \text{conf}(B_m)$: Empirical accuracy and mean confidence of bin $B_m$.</li>
+              <li><strong>Target Objective:</strong> $\text{ECE} < 0.05$.</li>
+            </ul>
+          </div>
+        </div>
+
+        <h4>2. Over-Classification Error Rate ($E_{\text{over}}$)</h4>
+        <div class="formula-box">
+          <div class="formula-display">
+            $$E_{\text{over}} = \frac{\sum_{i=1}^{N_{\text{novel}}} \mathbb{I}(\hat{y}_i \in
+            \mathcal{Y}_{\text{known}})}{N_{\text{novel}}}$$
+          </div>
+          <div class="formula-meta">
+            <ul class="param-list">
+              <li>$N_{\text{novel}}$: Count of test sequences belonging to withheld novel clades.</li>
+              <li>$\mathcal{Y}_{\text{known}}$: Set of known reference species in training database.</li>
+              <li>$\hat{y}_i$: Predicted label for query sequence $i$.</li>
+              <li><strong>Target Objective:</strong> $E_{\text{over}} \to 0.0$ by halting predictions gracefully at
+                genus/family ancestral ranks when evaluating novel taxa.</li>
+            </ul>
+          </div>
+        </div>
+
+    </section>
+  </main>
+
+</body>
+
+</html>
