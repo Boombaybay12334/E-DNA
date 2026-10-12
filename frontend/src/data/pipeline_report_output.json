@@ -1,0 +1,319 @@
+{
+  "isDemoData": false,
+  "generatedAt": "2026-10-12T18:32:10.493702+00:00",
+  "sample": {
+    "sampleId": "SAMPLE-WATER-001",
+    "project": "eDNA Biodiversity Assessment",
+    "sampleType": "water",
+    "latitude": 54.321,
+    "longitude": 10.123,
+    "locality": "Field Station Alpha",
+    "collectedAt": "2026-10-12T18:32:10.493714+00:00",
+    "details": [
+      {
+        "label": "Water body",
+        "value": "North Sea / Coastal Transect"
+      },
+      {
+        "label": "Depth",
+        "value": "15 m"
+      },
+      {
+        "label": "Filter pore size",
+        "value": "0.45 \u00b5m"
+      }
+    ],
+    "parameters": [
+      {
+        "label": "Salinity",
+        "value": "34.8 PSU"
+      },
+      {
+        "label": "Temperature",
+        "value": "11.2 \u00b0C"
+      }
+    ]
+  },
+  "methods": {
+    "marker": "12S marker amplicon",
+    "primers": "Forward / Reverse Standard Primer Set",
+    "referenceDb": "Curated Reference Library (MIDORI2 / SILVA / UNITE)",
+    "classifier": "Hierarchical Calibrated Classifier",
+    "pipelineVersion": "edna-analytics-v1.0.0",
+    "ranks": [
+      "Domain",
+      "Kingdom",
+      "Phylum",
+      "Class",
+      "Order",
+      "Family",
+      "Genus",
+      "Species"
+    ],
+    "supportCutoff": 0.7,
+    "confidenceBands": {
+      "high": 0.9,
+      "moderate": 0.8
+    },
+    "divergenceBands": {
+      "lowMinIdentity": 97.0,
+      "mediumMinIdentity": 90.0
+    },
+    "identityThresholds": {
+      "Domain": 70.0,
+      "Kingdom": 74.0,
+      "Phylum": 78.0,
+      "Class": 82.0,
+      "Order": 86.0,
+      "Family": 90.0,
+      "Genus": 94.0,
+      "Species": 97.0
+    },
+    "minReadsDefault": 10
+  },
+  "qc": [
+    {
+      "label": "Raw read pairs",
+      "reads": 33362
+    },
+    {
+      "label": "After primer trimming",
+      "reads": 29318
+    },
+    {
+      "label": "After quality filtering",
+      "reads": 24807
+    },
+    {
+      "label": "After merging + denoising",
+      "reads": 20806
+    },
+    {
+      "label": "After chimera removal (in ASVs)",
+      "reads": 19350
+    }
+  ],
+  "controls": [
+    {
+      "control": "Extraction blank (NTC)",
+      "taxon": "None detected",
+      "reads": 0
+    }
+  ],
+  "asvs": [
+    {
+      "id": "ASV_0001",
+      "sequence": "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT",
+      "reads": 14200,
+      "calls": [
+        {
+          "rank": "Domain",
+          "name": "Eukaryota",
+          "confidence": 1.0
+        },
+        {
+          "rank": "Kingdom",
+          "name": "Metazoa",
+          "confidence": 1.0
+        },
+        {
+          "rank": "Phylum",
+          "name": "Chordata",
+          "confidence": 0.99
+        },
+        {
+          "rank": "Class",
+          "name": "Actinopteri",
+          "confidence": 0.98
+        },
+        {
+          "rank": "Order",
+          "name": "Gadiformes",
+          "confidence": 0.97
+        },
+        {
+          "rank": "Family",
+          "name": "Gadidae",
+          "confidence": 0.96
+        },
+        {
+          "rank": "Genus",
+          "name": "Gadus",
+          "confidence": 0.95
+        },
+        {
+          "rank": "Species",
+          "name": "Gadus morhua",
+          "confidence": 0.94
+        }
+      ],
+      "topHits": [
+        {
+          "accession": "MOCK001",
+          "taxon": "Gadus morhua",
+          "lineage": [
+            "Eukaryota",
+            "Metazoa",
+            "Chordata",
+            "Actinopteri",
+            "Gadiformes",
+            "Gadidae",
+            "Gadus",
+            "Gadus morhua"
+          ],
+          "identity": 99.2,
+          "coverage": 100
+        }
+      ],
+      "reasons": [],
+      "flags": []
+    },
+    {
+      "id": "ASV_0002",
+      "sequence": "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT",
+      "reads": 4200,
+      "calls": [
+        {
+          "rank": "Domain",
+          "name": "Eukaryota",
+          "confidence": 1.0
+        },
+        {
+          "rank": "Kingdom",
+          "name": "Metazoa",
+          "confidence": 0.99
+        },
+        {
+          "rank": "Phylum",
+          "name": "Chordata",
+          "confidence": 0.98
+        },
+        {
+          "rank": "Class",
+          "name": "Chondrichthyes",
+          "confidence": 0.95
+        },
+        {
+          "rank": "Order",
+          "name": "Squaliformes",
+          "confidence": 0.9
+        },
+        {
+          "rank": "Family",
+          "name": "Somniosidae",
+          "confidence": 0.88
+        },
+        {
+          "rank": "Genus",
+          "name": "Somniosus",
+          "confidence": 0.85
+        },
+        {
+          "rank": "Species",
+          "name": "Somniosus microcephalus",
+          "confidence": 0.52
+        }
+      ],
+      "topHits": [
+        {
+          "accession": "MOCK002",
+          "taxon": "Somniosus pacificus",
+          "lineage": [
+            "Eukaryota",
+            "Metazoa",
+            "Chordata",
+            "Chondrichthyes",
+            "Squaliformes",
+            "Somniosidae",
+            "Somniosus",
+            "Somniosus pacificus"
+          ],
+          "identity": 95.1,
+          "coverage": 98
+        }
+      ],
+      "reasons": [
+        {
+          "code": "LOW_IDENTITY",
+          "detail": "Best reference match is 95.1%; assignment at Species requires \u2265 97.0%."
+        },
+        {
+          "code": "BELOW_CONFIDENCE",
+          "detail": "Classifier confidence at Species is 0.52, below cut-off 0.7."
+        }
+      ],
+      "flags": []
+    },
+    {
+      "id": "ASV_0003",
+      "sequence": "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT",
+      "reads": 950,
+      "calls": [
+        {
+          "rank": "Domain",
+          "name": "Eukaryota",
+          "confidence": 0.95
+        },
+        {
+          "rank": "Kingdom",
+          "name": "Metazoa",
+          "confidence": 0.92
+        },
+        {
+          "rank": "Phylum",
+          "name": "Chordata",
+          "confidence": 0.75
+        },
+        {
+          "rank": "Class",
+          "name": "Unknown_Class",
+          "confidence": 0.45
+        },
+        {
+          "rank": "Order",
+          "name": "Unknown_Order",
+          "confidence": 0.3
+        },
+        {
+          "rank": "Family",
+          "name": "Unknown_Family",
+          "confidence": 0.2
+        },
+        {
+          "rank": "Genus",
+          "name": "Unknown_Genus",
+          "confidence": 0.1
+        },
+        {
+          "rank": "Species",
+          "name": "Unknown_Species",
+          "confidence": 0.05
+        }
+      ],
+      "topHits": [
+        {
+          "accession": "MOCK003",
+          "taxon": "Uncultured chordate",
+          "lineage": [
+            "Eukaryota",
+            "Metazoa",
+            "Chordata"
+          ],
+          "identity": 79.5,
+          "coverage": 90
+        }
+      ],
+      "reasons": [
+        {
+          "code": "LOW_IDENTITY",
+          "detail": "Best reference match is 79.5%; assignment at Class requires \u2265 82.0%."
+        },
+        {
+          "code": "BELOW_CONFIDENCE",
+          "detail": "Classifier confidence at Class is 0.45, below cut-off 0.7."
+        }
+      ],
+      "flags": []
+    }
+  ]
+}

@@ -243,6 +243,24 @@ a.app-nav-item:hover { color: var(--side-ink); background: rgb(255 255 255 / 0.0
 .tile-value { font-size: 28px; font-weight: 700; line-height: 1.15; }
 .tile-label { color: var(--ink-2); font-size: 12px; }
 .tile-cta { color: var(--accent); font-size: 12px; margin-top: auto; padding-top: 6px; }
+
+/* ---------- Diversity metric cards ---------- */
+.diversity-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
+@media (max-width: 960px) { .diversity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .diversity-grid { grid-template-columns: minmax(0, 1fr); } }
+.diversity-card {
+  border: 1px solid var(--border); border-top: 3px solid var(--card-accent, var(--border-strong));
+  border-radius: var(--radius); padding: 12px 14px; background: var(--surface); box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.diversity-card.tone-teal { --card-accent: var(--teal); }
+.diversity-card.tone-info { --card-accent: var(--info); }
+.diversity-card.tone-mid { --card-accent: var(--mid); }
+.diversity-card.tone-good { --card-accent: var(--good); }
+.diversity-card-title { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.diversity-card-value { font-size: 24px; font-weight: 700; color: var(--ink); line-height: 1.2; margin-top: 2px; }
+.diversity-card-sublabel { font-size: 12px; color: var(--ink-3); margin-top: auto; padding-top: 6px; line-height: 1.35; }
+
 .quality-strip {
   display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 20px; padding: 10px 14px;
   border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; background: var(--surface-2);
@@ -500,12 +518,12 @@ select:hover:not(:disabled), input[type='search']:hover, input[type='number']:ho
 button.link:hover, .link:hover { color: #1d4ed8; background: none; text-decoration-thickness: 2px; }
 
 /* Cards that lift */
-.tile, .card, .matrix-cell { transition: transform var(--ease), box-shadow var(--ease), border-color var(--ease); }
+.tile, .card, .matrix-cell, .diversity-card { transition: transform var(--ease), box-shadow var(--ease), border-color var(--ease); }
 .tile:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-hover); border-color: var(--accent); }
 .tile-cta { transition: transform var(--ease); }
 .tile:hover .tile-cta { transform: translateX(3px); }
 .tile:hover .tile-icon { filter: saturate(1.3); }
-.card:hover { box-shadow: var(--shadow-hover); }
+.card:hover, .diversity-card:hover { box-shadow: var(--shadow-hover); }
 .matrix-cell:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
 
 /* Chart bar rows: tint, darker bar, styled tooltip */

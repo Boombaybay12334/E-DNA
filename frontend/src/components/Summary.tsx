@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import type { Report } from '../types';
 import { fmtCompact, fmtInt, fmtPct, resolutionProfile, summarize, type AsvView, type Filters } from '../lib/derive';
 import { BarRow, Section, Toggle } from './bits';
@@ -30,6 +30,36 @@ export function Summary({ report, views, onDrill }: Props) {
   const max = Math.max(...profile.map((r) => r[measure]));
   const genusIdx = ranks.indexOf('Genus');
   const flaggedControls = report.controls.length;
+
+  const diversityStats = useMemo(() => {
+    const activeAsvs = report.asvs.filter((a) => a.reads > 0);
+    const totalReads = activeAsvs.reduce((sum, a) => sum + a.reads, 0);
+    const richness = activeAsvs.length;
+
+    if (totalReads === 0 || richness === 0) {
+      return {
+        richness: 0,
+        shannon: 0,
+        simpson: 0,
+        giniSimpson: 0,
+        evenness: 1,
+      };
+    }
+
+    const p = activeAsvs.map((a) => a.reads / totalReads);
+    const shannon = -p.reduce((acc, pi) => acc + (pi > 0 ? pi * Math.log(pi) : 0), 0);
+    const simpson = p.reduce((acc, pi) => acc + pi * pi, 0);
+    const giniSimpson = 1 - simpson;
+    const evenness = richness > 1 ? shannon / Math.log(richness) : 1.0;
+
+    return {
+      richness,
+      shannon,
+      simpson,
+      giniSimpson,
+      evenness,
+    };
+  }, [report.asvs]);
 
   // Tiles are counts with a click-through. Nothing here is decorative.
   const tiles: { value: string; label: string; hint: string; patch: Partial<Filters>; tone: string; icon: ReactNode }[] = [
@@ -76,6 +106,42 @@ export function Summary({ report, views, onDrill }: Props) {
             <span className="tile-cta">View in results →</span>
           </button>
         ))}
+      </div>
+
+      <div className="subsection">
+        <div className="subsection-head">
+          <h3>Ecological Diversity Indices</h3>
+        </div>
+        <p className="muted small">
+          Alpha diversity metrics calculated across active amplicon sequence variants (reads &gt; 0).
+        </p>
+        <div className="diversity-grid">
+          <div className="diversity-card tone-teal">
+            <span className="diversity-card-title">Species Richness (S)</span>
+            <span className="diversity-card-value mono">{fmtInt(diversityStats.richness)}</span>
+            <span className="diversity-card-sublabel">Total variants with reads &gt; 0</span>
+          </div>
+
+          <div className="diversity-card tone-info">
+            <span className="diversity-card-title">Shannon-Wiener Index (H')</span>
+            <span className="diversity-card-value mono">{diversityStats.shannon.toFixed(3)}</span>
+            <span className="diversity-card-sublabel">Diversity &amp; entropy: −∑(pᵢ · ln pᵢ)</span>
+          </div>
+
+          <div className="diversity-card tone-mid">
+            <span className="diversity-card-title">Simpson's Dominance (D)</span>
+            <span className="diversity-card-value mono">{diversityStats.simpson.toFixed(3)}</span>
+            <span className="diversity-card-sublabel">
+              Gini-Simpson (1 − D): <strong className="mono">{diversityStats.giniSimpson.toFixed(3)}</strong>
+            </span>
+          </div>
+
+          <div className="diversity-card tone-good">
+            <span className="diversity-card-title">Pielou's Evenness (J')</span>
+            <span className="diversity-card-value mono">{diversityStats.evenness.toFixed(3)}</span>
+            <span className="diversity-card-sublabel">Equitability: H' / ln(S)</span>
+          </div>
+        </div>
       </div>
 
       <div className="subsection">
