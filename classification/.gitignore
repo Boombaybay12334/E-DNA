@@ -1,0 +1,12 @@
+work/
+splits*/
+logs/
+raw/
+*.fasta
+*.fasta.gz
+*.tax
+*.tax.gz
+pred_*.tsv
+*.raw
+__pycache__/
+*.pyc

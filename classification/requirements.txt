@@ -1,0 +1,7 @@
+# Python (conda env edna-core)
+numpy
+scikit-learn
+torch
+# External tools (conda envs edna-qc / edna-r)
+# cutadapt, vsearch  -> conda-forge / bioconda
+# R + Bioconductor DECIPHER (IDTAXA) -> bioconda: r-base bioconductor-decipher
