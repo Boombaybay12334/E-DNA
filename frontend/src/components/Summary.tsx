@@ -2,6 +2,8 @@ import { useState, type ReactNode } from 'react';
 import type { Report } from '../types';
 import { fmtCompact, fmtInt, fmtPct, resolutionProfile, summarize, type AsvView, type Filters } from '../lib/derive';
 import { BarRow, Section, Toggle } from './bits';
+import { BiodiversityHealth } from './BiodiversityHealth';
+import { IconAlert } from './icons';
 
 interface Props {
   report: Report;
@@ -49,8 +51,8 @@ export function Summary({ report, views, onDrill }: Props) {
       patch: { ranks: ranks.slice(0, genusIdx) }, tone: 'info', icon: TILE_ICONS.higher,
     },
     {
-      value: fmtInt(s.unrepresented), label: 'ASVs possibly unrepresented in the reference DB',
-      hint: 'High reference divergence. Not evidence of new species.',
+      value: fmtInt(s.unrepresented), label: 'ASVs possibly unrepresented in reference DB',
+      hint: 'High reference divergence. Indicates reference gaps or divergent taxa.',
       patch: { preset: 'unrepresented' }, tone: 'div', icon: TILE_ICONS.unrep,
     },
     {
@@ -61,10 +63,12 @@ export function Summary({ report, views, onDrill }: Props) {
   ];
 
   return (
-    <Section id="summary" title="Summary">
-      <p className="lede">
-        <strong className="mono">{fmtInt(s.asvs)}</strong> ASVs (unique sequence variants) from{' '}
-        <strong className="mono">{fmtInt(s.reads)}</strong> reads after QC.
+    <Section id="summary" title="Executive Summary & Biodiversity Health">
+      <BiodiversityHealth views={views} onDrill={onDrill} />
+
+      <p className="lede summary-lede">
+        Overall Library: <strong className="mono">{fmtInt(s.asvs)}</strong> ASVs (amplicon sequence variants) from{' '}
+        <strong className="mono">{fmtInt(s.reads)}</strong> quality-filtered reads.
       </p>
 
       <div className="tiles">
@@ -80,12 +84,12 @@ export function Summary({ report, views, onDrill }: Props) {
 
       <div className="subsection">
         <div className="subsection-head">
-          <h3>How deep could ASVs be classified?</h3>
+          <h3>Taxonomic Resolution Depth</h3>
           <Toggle label="Measure" value={measure} onChange={setMeasure}
             options={[{ value: 'asvs', label: 'by ASVs' }, { value: 'reads', label: 'by reads' }]} />
         </div>
         <p className="muted small">
-          Deepest rank with confidence ≥ {report.methods.supportCutoff.toFixed(2)}. Click a row to see those ASVs.
+          Deepest rank with classifier confidence ≥ {report.methods.supportCutoff.toFixed(2)}. Click any rank row to isolate those sequences.
         </p>
         <div className="bars">
           {profile.map((r) => (
@@ -104,11 +108,13 @@ export function Summary({ report, views, onDrill }: Props) {
       </div>
 
       <div className="quality-strip" role="status">
-        <span><span className="qs-ok">✓ QC completed:</span> {fmtInt(report.qc[report.qc.length - 1].reads)} of {fmtInt(report.qc[0].reads)} reads retained</span>
-        {flaggedControls > 0 && (
-          <span className="qs-warn">⚠ {flaggedControls} taxa also detected in negative controls</span>
+        <span><span className="qs-ok">✓ QC completed:</span> {fmtInt(report.qc[report.qc.length - 1].reads)} of {fmtInt(report.qc[0].reads)} reads retained ({fmtPct((report.qc[report.qc.length - 1].reads / report.qc[0].reads) * 100, 1)})</span>
+        {flaggedControls > 0 ? (
+          <span className="qs-warn"><IconAlert size={13} /> {flaggedControls} taxa also detected in negative controls (flagged CTRL)</span>
+        ) : (
+          <span className="qs-ok">✓ Negative controls clean</span>
         )}
-        <a href="#reliability">See reliability &amp; methods →</a>
+        <button type="button" className="link" onClick={() => onDrill({})}>See reliability &amp; methods →</button>
       </div>
     </Section>
   );

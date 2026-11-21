@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { CONFIDENCE_LABEL, DIVERGENCE_LABEL, type ConfidenceBand, type DivergenceBand } from '../lib/derive';
 import type { FlagCode } from '../types';
+import { IUCN_META, ECO_TAG_META, type IucnStatus, type EcologicalTag } from '../data/ecologicalData';
 
 // Every state has a glyph + text label, never color alone.
 const CONF_GLYPH: Record<ConfidenceBand, string> = { high: '●', moderate: '◐', low: '○', unsupported: '✕' };
@@ -19,6 +20,26 @@ export function DivergenceBadge({ band }: { band: DivergenceBand }) {
   return (
     <span className={`badge div-${band}`} title="Distance from the closest reference record (by % identity)">
       <span aria-hidden>{DIV_GLYPH[band]}</span> {DIVERGENCE_LABEL[band]}
+    </span>
+  );
+}
+
+export function IucnBadge({ status }: { status?: IucnStatus }) {
+  if (!status || status === 'NE' || status === 'DD') return null;
+  const meta = IUCN_META[status] ?? { label: status, desc: '', tone: 'none' };
+  return (
+    <span className={`iucn-pill iucn-${status.toLowerCase()}`} title={`IUCN Red List: ${meta.label} – ${meta.desc}`}>
+      {status}
+    </span>
+  );
+}
+
+export function EcoTagBadge({ tag, label }: { tag?: EcologicalTag; label?: string }) {
+  if (!tag) return null;
+  const meta = ECO_TAG_META[tag];
+  return (
+    <span className={`eco-tag-pill eco-tone-${meta?.tone ?? 'info'}`} title={label ?? meta?.label}>
+      <span>{label ?? meta?.label}</span>
     </span>
   );
 }
@@ -46,7 +67,7 @@ export function Flags({ flags }: { flags: FlagCode[] }) {
 }
 
 /** Shows the tail of the supported lineage; full path on hover. */
-export function Lineage({ lineage, tail = 2 }: { lineage: string[]; tail?: number }) {
+export function Lineage({ lineage, commonName, tail = 2 }: { lineage: string[]; commonName?: string; tail?: number }) {
   if (!lineage.length) return <span className="muted" title="No rank supported, not even Domain">Unresolved</span>;
   // Context (parents) truncates first; the deepest supported name always stays visible.
   // A binomial already names its genus, so species rows show the name alone.
@@ -62,7 +83,10 @@ export function Lineage({ lineage, tail = 2 }: { lineage: string[]; tail?: numbe
           {context.map((n, i) => <span key={i}>{n}<span className="muted"> › </span></span>)}
         </span>
       )}
-      <strong className={`lineage-name${isBinomial ? ' species' : ''}`}>{name}</strong>
+      <span className="lineage-main-wrap">
+        <strong className={`lineage-name${isBinomial ? ' species' : ''}`}>{name}</strong>
+        {commonName && <span className="lineage-common-sub">{commonName}</span>}
+      </span>
     </span>
   );
 }

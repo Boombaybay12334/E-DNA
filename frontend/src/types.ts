@@ -79,6 +79,88 @@ export interface ReportMethods {
 /** Environment the sample was taken from. Drives which metadata rows are shown, never the analysis. */
 export type SampleType = 'water' | 'soil' | 'sediment';
 
+export type EnvironmentalDomain = 'aquatic' | 'terrestrial';
+
+export type EcosystemSubtype =
+  | 'marine'
+  | 'deep_sea'
+  | 'estuarine'
+  | 'freshwater'
+  | 'aquatic_sediment'
+  | 'soil_microbial'
+  | 'mine_reclamation';
+
+export interface ProjectRecord {
+  id: string;
+  name: string;
+  organization: string;
+  location: string;
+  domain: EnvironmentalDomain;
+  subtype: EcosystemSubtype;
+  objective: string;
+  samplingDate: string;
+  status: 'active' | 'completed' | 'in_review';
+  sampleIds: string[];
+  keyObservation?: string;
+  complianceStandard?: string;
+}
+
+export interface SampleRecord {
+  id: string;
+  projectId: string;
+  projectName: string;
+  locality: string;
+  latitude: number;
+  longitude: number;
+  sampleType: SampleType;
+  domain: EnvironmentalDomain;
+  collectionDate: string;
+  depth?: string;
+  qcStatus: 'passed' | 'review' | 'failed';
+  readCount: number;
+  asvCount: number;
+  identifiedSpecies: number;
+  shannonIndex: number;
+  pipelineJobId?: string;
+  parameters: Record<string, string>;
+}
+
+export interface PipelineStage {
+  name: string;
+  status: 'completed' | 'running' | 'queued' | 'pending';
+  progress: number; // 0 - 100
+  detail: string;
+  timestamp?: string;
+}
+
+export interface PipelineJob {
+  id: string;
+  sampleId: string;
+  sampleName: string;
+  projectId: string;
+  marker: string;
+  referenceDb: string;
+  readsInput: number;
+  readsRetained: number;
+  asvsInferred: number;
+  startedAt: string;
+  completedAt?: string;
+  status: 'completed' | 'processing' | 'failed';
+  currentStage: number;
+  stages: PipelineStage[];
+}
+
+export type AppNavView =
+  | 'overview'
+  | 'projects'
+  | 'samples'
+  | 'analysis'
+  | 'insights'
+  | 'reports'
+  | 'documentation'
+  | 'settings'
+  | 'results'; // layered results view for a specific sample/project
+
 /** One labelled metadata row. Values are display strings so each sample type can word its own. */
 export interface MetaField {
   label: string;

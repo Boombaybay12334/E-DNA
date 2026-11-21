@@ -1,178 +1,160 @@
-import { useCallback, useMemo, useState } from 'react';
-import type { Report, SampleType } from './types';
-import { DEFAULT_SAMPLE_TYPE, readSampleType, sampleTypeInfo } from './lib/sampleTypes';
-import { buildMockReport } from './data/mockReport';
-import { applyFilters, defaultFilters, deriveViews, type AsvView, type Filters } from './lib/derive';
-import { useWorkspaceState, type WorkspaceState } from './lib/urlState';
-import { exportCsv } from './lib/export';
-import { useActiveSection, useCssHeightVar } from './lib/layout';
-import { ReportHeader } from './components/ReportHeader';
-import { Summary } from './components/Summary';
-import { Composition } from './components/Composition';
-import { UnresolvedCallout } from './components/UnresolvedCallout';
-import { ResultsWorkspace } from './components/ResultsWorkspace';
-import { Reliability } from './components/Reliability';
-import { SequenceDrawer } from './components/SequenceDrawer';
-import { SectionNav, type NavItem } from './components/SectionNav';
-import { AppSidebar } from './components/AppSidebar';
+import { useState, useMemo } from 'react';
+import type { AppView, ClassificationResult, SequenceRecord } from './types/contract';
+import { EXAMPLE_RUN, TARA_OCEANS_RUN } from './data/mock/runs';
+import { recalculateClassificationResult } from './lib/threshold';
+import { AppHeader } from './components/layout/AppHeader';
+import { AppSidebar } from './components/layout/AppSidebar';
+import { OverviewDashboard } from './components/dashboard/OverviewDashboard';
+import { ResultsTable } from './components/results/ResultsTable';
+import { UploadView } from './components/upload/UploadView';
+import { CommunityInsightsView } from './components/insights/CommunityInsightsView';
+import { SequenceDetailDrawer } from './components/results/SequenceDetailDrawer';
+import { RunMetadataModal } from './components/metadata/RunMetadataModal';
+import { MethodGuideModal } from './components/common/MethodGuideModal';
 
-// TODO: replace with a fetch of the pipeline's report JSON (same shape as `Report`).
-// Built lazily, once per sample type, so switching back is instant.
-interface Bundle {
-  report: Report;
-  views: AsvView[];
-  defaults: WorkspaceState;
-  byId: Map<string, AsvView>;
-}
-const bundles: Partial<Record<SampleType, Bundle>> = {};
-function getBundle(type: SampleType): Bundle {
-  let b = bundles[type];
-  if (!b) {
-    const report = buildMockReport(type);
-    const views = deriveViews(report);
-    b = bundles[type] = {
-      report,
-      views,
-      byId: new Map(views.map((v) => [v.asv.id, v])),
-      defaults: {
-        filters: defaultFilters(report.methods),
-        view: 'table',
-        groupBy: 'asv',
-        sort: { key: 'reads', dir: 'desc' },
-        page: 0,
-        asv: null,
-      },
-    };
-  }
-  return b;
-}
+export function App() {
+  // Available runs in workspace
+  const [runs, setRuns] = useState<ClassificationResult[]>([
+    EXAMPLE_RUN,
+    TARA_OCEANS_RUN,
+  ]);
 
-const NAV: NavItem[] = [
-  { id: 'header', label: 'Sample' },
-  { id: 'summary', label: 'Summary' },
-  { id: 'composition', label: 'Composition' },
-  { id: 'unresolved', label: 'Unresolved & unrepresented' },
-  { id: 'results', label: 'Results' },
-  { id: 'reliability', label: 'Reliability & methods' },
-];
-const NAV_IDS = NAV.map((n) => n.id);
+  // Selected run ID
+  const [activeRunId, setActiveRunId] = useState<string>(EXAMPLE_RUN.run.run_id);
 
-function sortViews(rows: AsvView[], key: WorkspaceState['sort']['key'], dir: 'asc' | 'desc') {
-  const value = (v: AsvView): number | string => {
-    switch (key) {
-      case 'id': return v.asv.id;
-      case 'name': return v.name;
-      case 'rank': return v.deepest;
-      case 'confidence': return v.confidence;
-      case 'divergence': return -v.bestIdentity; // higher divergence = lower identity
-      case 'identity': return v.bestIdentity;
-      case 'reads': return v.asv.reads;
+  // Active view state
+  const [currentView, setCurrentView] = useState<AppView>('overview');
+
+  // Active threshold tau
+  const [tau, setTau] = useState<number>(0.60);
+
+  // Selected sequence for detail drawer
+  const [selectedSequence, setSelectedSequence] = useState<SequenceRecord | null>(null);
+
+  // Modal states
+  const [isMetadataOpen, setIsMetadataOpen] = useState<boolean>(false);
+  const [isMethodGuideOpen, setIsMethodGuideOpen] = useState<boolean>(false);
+
+  // Retrieve base run from runs array
+  const baseRun = useMemo(() => {
+    return runs.find((r) => r.run.run_id === activeRunId) || runs[0];
+  }, [runs, activeRunId]);
+
+  // Dynamically recalculate run assignments based on active tau
+  const activeRun = useMemo(() => {
+    return recalculateClassificationResult(baseRun, tau);
+  }, [baseRun, tau]);
+
+  // Keep selectedSequence in sync with recalculated run
+  const activeSelectedSequence = useMemo(() => {
+    if (!selectedSequence) return null;
+    return activeRun.sequences.find((s: SequenceRecord) => s.id === selectedSequence.id) || selectedSequence;
+  }, [activeRun.sequences, selectedSequence]);
+
+  const handleSelectRun = (runId: string) => {
+    setActiveRunId(runId);
+    setSelectedSequence(null);
+    const chosen = runs.find((r) => r.run.run_id === runId);
+    if (chosen) {
+      setTau(chosen.run.threshold.tau);
     }
   };
-  const sign = dir === 'asc' ? 1 : -1;
-  return [...rows].sort((a, b) => {
-    const x = value(a), y = value(b);
-    return (x < y ? -1 : x > y ? 1 : 0) * sign;
-  });
-}
 
-/**
- * The sample type chooses which report is shown. The page below is the same component tree for every type,
- * keyed by type so filters, view and the open ASV reset (they refer to ASVs of the other sample).
- */
-export function App() {
-  const [type, setType] = useState<SampleType>(readSampleType);
-  const changeType = useCallback((next: SampleType) => {
-    const qs = next === DEFAULT_SAMPLE_TYPE ? '' : `?type=${next}`;
-    window.history.replaceState(null, '', `${window.location.pathname}${qs}`);
-    setType(next);
-    window.scrollTo({ top: 0 });
-  }, []);
-  return <ReportPage key={type} type={type} onSampleType={changeType} />;
-}
-
-function ReportPage({ type, onSampleType }: { type: SampleType; onSampleType: (t: SampleType) => void }) {
-  const { report, views, byId, defaults: DEFAULTS } = getBundle(type);
-  const { state, setFilters, update, setState } = useWorkspaceState(DEFAULTS);
-
-  const rows = useMemo(
-    () => sortViews(applyFilters(views, state.filters), state.sort.key, state.sort.dir),
-    [views, state.filters, state.sort],
-  );
-  const open = state.asv ? byId.get(state.asv) ?? null : null;
-  const index = open ? rows.indexOf(open) : -1;
-
-  /** Entry point from summary tiles, charts and callouts: fresh filters + scroll to results. */
-  const drill = useCallback((patch: Partial<Filters>) => {
-    setState((s) => ({ ...s, filters: { ...DEFAULTS.filters, ...patch }, view: 'table', groupBy: 'asv', page: 0 }));
-    document.getElementById('results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [setState, DEFAULTS]);
-
-  const openAsv = useCallback((id: string) => update({ asv: id }), [update]);
-  const step = useCallback((delta: number) => {
-    if (index < 0) return;
-    const next = rows[index + delta];
-    if (next) update({ asv: next.asv.id });
-  }, [index, rows, update]);
-  const onPrev = useCallback(() => step(-1), [step]);
-  const onNext = useCallback(() => step(1), [step]);
-  const onClose = useCallback(() => update({ asv: null }), [update]);
-
-  const topbarRef = useCssHeightVar<HTMLElement>('--topbar-h');
-  const navRef = useCssHeightVar<HTMLElement>('--navstrip-h');
-  const active = useActiveSection(NAV_IDS);
-  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile only
-  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+  const handleRunCreated = (newRun: ClassificationResult) => {
+    setRuns((prev) => [newRun, ...prev]);
+    setActiveRunId(newRun.run.run_id);
+    setTau(newRun.run.threshold.tau);
+    setCurrentView('results');
+  };
 
   return (
-    <div className="app">
-      <AppSidebar sections={NAV} activeSection={active} project={report.sample.project}
-        open={sidebarOpen} onClose={closeSidebar} />
+    <div className="h-screen bg-slate-50 text-slate-800 flex flex-col font-sans antialiased overflow-hidden">
+      {/* Top Application Header */}
+      <AppHeader
+        currentRun={activeRun}
+        allRuns={runs}
+        onSelectRun={handleSelectRun}
+        onOpenMetadata={() => setIsMetadataOpen(true)}
+        onOpenMethodGuide={() => setIsMethodGuideOpen(true)}
+        tau={tau}
+      />
 
-      <div className="app-main">
-        {report.isDemoData && (
-          <div className="demo-banner" role="note">
-            Demo data: synthetic results for layout testing. Not real observations.
+      {/* Main Layout Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Navigation Sidebar */}
+        <AppSidebar
+          currentView={currentView}
+          onNavigate={(view) => {
+            setCurrentView(view);
+            setSelectedSequence(null);
+          }}
+          run={activeRun.run}
+        />
+
+        {/* Content View Container */}
+        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            {currentView === 'overview' && (
+              <OverviewDashboard
+                result={activeRun}
+                allRuns={runs}
+                onSelectRun={handleSelectRun}
+                onNavigateToUpload={() => setCurrentView('upload')}
+                onNavigateToResults={() => setCurrentView('results')}
+                tau={tau}
+              />
+            )}
+
+            {currentView === 'results' && (
+              <ResultsTable
+                result={activeRun}
+                tau={tau}
+                onThresholdChange={setTau}
+                onSelectSequence={setSelectedSequence}
+                selectedSequenceId={activeSelectedSequence?.id}
+              />
+            )}
+
+            {currentView === 'upload' && (
+              <UploadView
+                onRunCreated={handleRunCreated}
+                defaultTau={tau}
+              />
+            )}
+
+            {currentView === 'insights' && (
+              <CommunityInsightsView
+                result={activeRun}
+                tau={tau}
+                onThresholdChange={setTau}
+              />
+            )}
           </div>
-        )}
-        <header className="topbar" ref={topbarRef} data-sticky>
-          <div className="topbar-inner">
-            <button type="button" className="menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation">☰</button>
-            <span className="crumb">Reports</span>
-            <span className="muted">›</span>
-            <label className="inline-control">
-              <span className="visually-hidden">Sample</span>
-              <select value={report.sample.sampleId} disabled title="Sample switching: once multiple samples exist">
-                <option>{report.sample.sampleId}</option>
-              </select>
-            </label>
-            <span className="spacer" />
-            <button type="button" className="primary" onClick={() => exportCsv(views, report.methods.ranks, report.sample.sampleId)}>Export all (CSV)</button>
-            <a className="button" href="#reliability">Methods</a>
-          </div>
-        </header>
-  
-        <div className="layout">
-          <SectionNav items={NAV} active={active} navRef={navRef} />
-  
-          <main>
-            <ReportHeader report={report} onSampleType={onSampleType} />
-            <Summary report={report} views={views} onDrill={drill} />
-            <Composition views={views} ranks={report.methods.ranks} initialRank={sampleTypeInfo(type).compositionRank}
-              onDrill={drill} />
-            <UnresolvedCallout views={views} methods={report.methods} onDrill={drill} />
-            <ResultsWorkspace views={views} rows={rows} methods={report.methods} sampleId={report.sample.sampleId}
-              state={state} defaults={DEFAULTS.filters} setFilters={setFilters} update={update} onOpen={openAsv} />
-            <Reliability report={report} views={views} onDrill={drill} />
-          </main>
-        </div>
+        </main>
       </div>
 
-      {open && (
-        <SequenceDrawer view={open} methods={report.methods} isDemoData={report.isDemoData}
-          position={index >= 0 ? { index, total: rows.length } : null}
-          onPrev={onPrev} onNext={onNext} onClose={onClose} />
-      )}
+      {/* Sequence Detail Slide-out Drawer */}
+      <SequenceDetailDrawer
+        sequence={activeSelectedSequence}
+        run={activeRun.run}
+        tau={tau}
+        onClose={() => setSelectedSequence(null)}
+      />
+
+      {/* Run Audit / Metadata Modal */}
+      <RunMetadataModal
+        isOpen={isMetadataOpen}
+        onClose={() => setIsMetadataOpen(false)}
+        run={activeRun.run}
+      />
+
+      {/* Method & Scientific EIA Guide Modal */}
+      <MethodGuideModal
+        isOpen={isMethodGuideOpen}
+        onClose={() => setIsMethodGuideOpen(false)}
+      />
     </div>
   );
 }
+
+export default App;

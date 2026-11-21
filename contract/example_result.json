@@ -1,0 +1,412 @@
+{
+  "contract_version": "1.0",
+  "run": {
+    "run_id": "example-run-0001",
+    "created_utc": "2026-11-20T19:13:39Z",
+    "model": {
+      "name": "example_model",
+      "version": "0.0-illustrative",
+      "code_commit": null
+    },
+    "reference": {
+      "name": "PR2",
+      "version": "5.0.0",
+      "subset": "18S V4, 99% clustered (illustrative)"
+    },
+    "marker": {
+      "gene": "18S rRNA",
+      "region": "V4"
+    },
+    "ranks": [
+      "domain",
+      "supergroup",
+      "division",
+      "subdivision",
+      "class",
+      "order",
+      "family",
+      "genus"
+    ],
+    "threshold": {
+      "tau": 0.6,
+      "rule": "assigned_depth = number of leading ranks (from the root) whose confidence >= tau"
+    },
+    "confidence_semantics": "model-specific; not comparable across models"
+  },
+  "sequences": [
+    {
+      "id": "ASV_0001",
+      "length": 380,
+      "status": "assigned_full",
+      "assigned_depth": 8,
+      "deepest_rank": "genus",
+      "deepest_taxon": "Protoperidinium",
+      "lineage": [
+        {
+          "rank": "domain",
+          "taxon": "Eukaryota",
+          "confidence": 1.0,
+          "assigned": true
+        },
+        {
+          "rank": "supergroup",
+          "taxon": "TSAR",
+          "confidence": 1.0,
+          "assigned": true
+        },
+        {
+          "rank": "division",
+          "taxon": "Alveolata",
+          "confidence": 1.0,
+          "assigned": true
+        },
+        {
+          "rank": "subdivision",
+          "taxon": "Dinoflagellata",
+          "confidence": 0.99,
+          "assigned": true
+        },
+        {
+          "rank": "class",
+          "taxon": "Dinophyceae",
+          "confidence": 0.97,
+          "assigned": true
+        },
+        {
+          "rank": "order",
+          "taxon": "Peridiniales",
+          "confidence": 0.9,
+          "assigned": true
+        },
+        {
+          "rank": "family",
+          "taxon": "Protoperidiniaceae",
+          "confidence": 0.82,
+          "assigned": true
+        },
+        {
+          "rank": "genus",
+          "taxon": "Protoperidinium",
+          "confidence": 0.71,
+          "assigned": true
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "id": "ASV_0002",
+      "length": 372,
+      "status": "assigned_partial",
+      "assigned_depth": 5,
+      "deepest_rank": "class",
+      "deepest_taxon": "Oligohymenophorea",
+      "lineage": [
+        {
+          "rank": "domain",
+          "taxon": "Eukaryota",
+          "confidence": 1.0,
+          "assigned": true
+        },
+        {
+          "rank": "supergroup",
+          "taxon": "TSAR",
+          "confidence": 0.99,
+          "assigned": true
+        },
+        {
+          "rank": "division",
+          "taxon": "Alveolata",
+          "confidence": 0.96,
+          "assigned": true
+        },
+        {
+          "rank": "subdivision",
+          "taxon": "Ciliophora",
+          "confidence": 0.9,
+          "assigned": true
+        },
+        {
+          "rank": "class",
+          "taxon": "Oligohymenophorea",
+          "confidence": 0.64,
+          "assigned": true
+        },
+        {
+          "rank": "order",
+          "taxon": "Peniculida",
+          "confidence": 0.41,
+          "assigned": false
+        },
+        {
+          "rank": "family",
+          "taxon": "Parameciidae",
+          "confidence": 0.22,
+          "assigned": false
+        },
+        {
+          "rank": "genus",
+          "taxon": "Paramecium",
+          "confidence": 0.1,
+          "assigned": false
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "id": "ASV_0003",
+      "length": 365,
+      "status": "unassigned",
+      "assigned_depth": 0,
+      "deepest_rank": null,
+      "deepest_taxon": null,
+      "lineage": [
+        {
+          "rank": "domain",
+          "taxon": "Eukaryota",
+          "confidence": 0.52,
+          "assigned": false
+        },
+        {
+          "rank": "supergroup",
+          "taxon": "TSAR",
+          "confidence": 0.3,
+          "assigned": false
+        },
+        {
+          "rank": "division",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "subdivision",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "class",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "order",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "family",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "genus",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "id": "ASV_0004",
+      "length": 120,
+      "status": "invalid_input",
+      "assigned_depth": 0,
+      "deepest_rank": null,
+      "deepest_taxon": null,
+      "warnings": [
+        "length_below_200"
+      ],
+      "lineage": [
+        {
+          "rank": "domain",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "supergroup",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "division",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "subdivision",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "class",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "order",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "family",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "genus",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        }
+      ]
+    },
+    {
+      "id": "ASV_0005",
+      "length": 380,
+      "status": "invalid_input",
+      "assigned_depth": 0,
+      "deepest_rank": null,
+      "deepest_taxon": null,
+      "warnings": [
+        "non_acgt_characters"
+      ],
+      "lineage": [
+        {
+          "rank": "domain",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "supergroup",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "division",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "subdivision",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "class",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "order",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "family",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "genus",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        }
+      ]
+    },
+    {
+      "id": "ASV_0006",
+      "length": 380,
+      "status": "unassigned",
+      "assigned_depth": 0,
+      "deepest_rank": null,
+      "deepest_taxon": null,
+      "lineage": [
+        {
+          "rank": "domain",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "supergroup",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "division",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "subdivision",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "class",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "order",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "family",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        },
+        {
+          "rank": "genus",
+          "taxon": null,
+          "confidence": null,
+          "assigned": false
+        }
+      ],
+      "warnings": [
+        "no_prediction_returned"
+      ]
+    }
+  ],
+  "summary": {
+    "n_sequences": 6,
+    "n_by_status": {
+      "assigned_full": 1,
+      "assigned_partial": 1,
+      "unassigned": 2,
+      "invalid_input": 2
+    },
+    "n_by_deepest_rank": {
+      "genus": 1,
+      "class": 1,
+      "none": 2
+    }
+  }
+}

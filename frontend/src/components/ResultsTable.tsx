@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { fmtInt, fmtPct, type AsvView, type Filters } from '../lib/derive';
 import type { SortKey, WorkspaceState } from '../lib/urlState';
 import { exportCsv, exportFasta } from '../lib/export';
-import { ConfidenceBadge, DivergenceBadge, Flags, Lineage, Toggle } from './bits';
+import { ConfidenceBadge, DivergenceBadge, Flags, Lineage, Toggle, IucnBadge, EcoTagBadge } from './bits';
+import { getTaxonEcology } from '../data/ecologicalData';
 
 const PAGE_SIZE = 50;
 
@@ -100,7 +101,15 @@ export function ResultsTable({ rows, ranks, sampleId, state, update, setFilters,
                         {v.asv.id}
                       </button>
                     </td>
-                    <td><Lineage lineage={v.lineage} /></td>
+                    <td>
+                      <div className="table-classification-cell">
+                        <Lineage lineage={v.lineage} commonName={v.commonName} />
+                        <div className="table-eco-badges">
+                          <IucnBadge status={v.iucnStatus} />
+                          <EcoTagBadge tag={v.ecoTag} label={v.tagLabel} />
+                        </div>
+                      </div>
+                    </td>
                     <td>{v.deepestRank}</td>
                     <td><ConfidenceBadge band={v.band} value={v.confidence} /></td>
                     <td>
@@ -164,19 +173,31 @@ function TaxonGroups({ rows, onPick }: { rows: AsvView[]; onPick: (lineage: stri
           </tr>
         </thead>
         <tbody>
-          {groups.map((g) => (
-            <tr key={g.lineage.join('|') || 'none'} onClick={() => onPick(g.lineage)}>
-              <td><Lineage lineage={g.lineage} /></td>
-              <td>{g.rank}</td>
-              <td className="num mono">{fmtInt(g.asvs)}</td>
-              <td className="num mono">{fmtInt(g.reads)}</td>
-              <td className="mono small">
-                {g.conf.high ? `● ${g.conf.high} ` : ''}{g.conf.moderate ? `◐ ${g.conf.moderate} ` : ''}
-                {g.conf.low ? `○ ${g.conf.low} ` : ''}{g.conf.unsupported ? `✕ ${g.conf.unsupported}` : ''}
-              </td>
-              <td className="num mono">{g.highDiv || '–'}</td>
-            </tr>
-          ))}
+          {groups.map((g) => {
+            const name = g.lineage[g.lineage.length - 1];
+            const eco = getTaxonEcology(name);
+            return (
+              <tr key={g.lineage.join('|') || 'none'} onClick={() => onPick(g.lineage)}>
+                <td>
+                  <div className="table-classification-cell">
+                    <Lineage lineage={g.lineage} commonName={eco?.commonName} />
+                    <div className="table-eco-badges">
+                      <IucnBadge status={eco?.iucnStatus} />
+                      <EcoTagBadge tag={eco?.tag} label={eco?.tagLabel} />
+                    </div>
+                  </div>
+                </td>
+                <td>{g.rank}</td>
+                <td className="num mono">{fmtInt(g.asvs)}</td>
+                <td className="num mono">{fmtInt(g.reads)}</td>
+                <td className="mono small">
+                  {g.conf.high ? `● ${g.conf.high} ` : ''}{g.conf.moderate ? `◐ ${g.conf.moderate} ` : ''}
+                  {g.conf.low ? `○ ${g.conf.low} ` : ''}{g.conf.unsupported ? `✕ ${g.conf.unsupported}` : ''}
+                </td>
+                <td className="num mono">{g.highDiv || '–'}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

@@ -3,6 +3,7 @@ import {
   composition, fmtCompact, fmtInt, fmtPct, rarefaction, richnessByRank, UNASSIGNED, type AsvView, type Filters,
 } from '../lib/derive';
 import { BarRow, Section, Toggle } from './bits';
+import { CompositionDonut } from './CompositionDonut';
 
 interface Props {
   views: AsvView[];
@@ -17,6 +18,7 @@ const TOP_N = 8;
 export function Composition({ views, ranks, initialRank, onDrill }: Props) {
   const [rankIdx, setRankIdx] = useState(Math.max(0, ranks.indexOf(initialRank)));
   const [measure, setMeasure] = useState<'asvs' | 'reads'>('reads');
+  const [viewStyle, setViewStyle] = useState<'donut' | 'bars'>('donut');
   const [showAll, setShowAll] = useState(false);
 
   const groups = useMemo(() => composition(views, rankIdx), [views, rankIdx]);
@@ -36,54 +38,76 @@ export function Composition({ views, ranks, initialRank, onDrill }: Props) {
   };
 
   return (
-    <Section id="composition" title="Composition">
-      <div className="subsection-head">
+    <Section id="composition" title="Taxonomic Composition & Biodiversity Structure">
+      <div className="composition-toolbar">
         <label className="inline-control">
-          Rank{' '}
+          Taxonomic Rank:{' '}
           <select value={rankIdx} onChange={(e) => setRankIdx(Number(e.target.value))}>
             {ranks.map((r, i) => <option key={r} value={i}>{r}</option>)}
           </select>
         </label>
-        <Toggle label="Measure" value={measure} onChange={setMeasure}
-          options={[{ value: 'reads', label: 'Read share' }, { value: 'asvs', label: 'ASV count' }]} />
+
+        <div className="comp-toggles">
+          <Toggle label="Chart View" value={viewStyle} onChange={setViewStyle}
+            options={[{ value: 'donut', label: 'Donut View' }, { value: 'bars', label: 'Rank Bars' }]} />
+          <Toggle label="Measure" value={measure} onChange={setMeasure}
+            options={[{ value: 'reads', label: 'Read share' }, { value: 'asvs', label: 'ASV count' }]} />
+        </div>
       </div>
 
-      <div className="bars">
-        {shown.map((g) => (
-          <BarRow key={g.name} label={g.name} value={g[measure]} max={max}
-            display={`${measure === 'asvs' ? fmtInt(g.asvs) : fmtCompact(g.reads)} · ${fmtPct((g[measure] / total) * 100)}`}
-            onClick={() => drill(g.name)} title={`${fmtInt(g.asvs)} ASVs, ${fmtInt(g.reads)} reads`} />
-        ))}
-        {assigned.length > TOP_N && (
-          <button type="button" className="link" onClick={() => setShowAll(!showAll)}>
-            {showAll ? 'Show top 8' : `… ${assigned.length - TOP_N} more ${ranks[rankIdx].toLowerCase()} groups`}
-          </button>
-        )}
-        {unassigned && (
-          <BarRow label={UNASSIGNED} value={unassigned[measure]} max={max} emphasis="unassigned"
-            display={`${measure === 'asvs' ? fmtInt(unassigned.asvs) : fmtCompact(unassigned.reads)} · ${fmtPct((unassigned[measure] / total) * 100)}`}
-            onClick={() => drill(UNASSIGNED)} title="ASVs whose evidence does not reach this rank. Always shown." />
-        )}
-      </div>
+      {viewStyle === 'donut' ? (
+        <CompositionDonut
+          groups={groups}
+          measure={measure}
+          total={total}
+          rankLabel={ranks[rankIdx]}
+          onSelect={drill}
+        />
+      ) : (
+        <div className="bars">
+          {shown.map((g) => (
+            <BarRow key={g.name} label={g.name} value={g[measure]} max={max}
+              display={`${measure === 'asvs' ? fmtInt(g.asvs) : fmtCompact(g.reads)} · ${fmtPct((g[measure] / total) * 100)}`}
+              onClick={() => drill(g.name)} title={`${fmtInt(g.asvs)} ASVs, ${fmtInt(g.reads)} reads`} />
+          ))}
+          {assigned.length > TOP_N && (
+            <button type="button" className="link" onClick={() => setShowAll(!showAll)}>
+              {showAll ? 'Show top 8' : `… ${assigned.length - TOP_N} more ${ranks[rankIdx].toLowerCase()} groups`}
+            </button>
+          )}
+          {unassigned && (
+            <BarRow label={UNASSIGNED} value={unassigned[measure]} max={max} emphasis="unassigned"
+              display={`${measure === 'asvs' ? fmtInt(unassigned.asvs) : fmtCompact(unassigned.reads)} · ${fmtPct((unassigned[measure] / total) * 100)}`}
+              onClick={() => drill(UNASSIGNED)} title="ASVs whose evidence does not reach this rank. Always shown." />
+          )}
+        </div>
+      )}
+
       {measure === 'reads' && (
-        <p className="caveat">ⓘ Read share reflects amplified DNA, not abundance or biomass. PCR bias and copy number distort it.</p>
+        <p className="caveat">
+          ⓘ <strong>PCR Copy Number Notice:</strong> Read share reflects amplified PCR products, not absolute organism biomass.
+          Ribosomal RNA and mitochondrial gene copy numbers vary across taxonomic kingdoms.
+        </p>
       )}
 
       <div className="two-col">
         <div className="subsection">
-          <h3>Richness by rank</h3>
-          <p className="muted small">Distinct supported names at each rank.</p>
+          <h3>Taxonomic Richness by Rank</h3>
+          <p className="muted small">Distinct supported taxonomic lineages detected at each hierarchy level.</p>
           <table className="mini-table">
             <tbody>
               {richness.map((r) => (
-                <tr key={r.rank}><th scope="row">{r.rank}</th><td className="mono num">{fmtInt(r.count)}</td></tr>
+                <tr key={r.rank}>
+                  <th scope="row">{r.rank}</th>
+                  <td className="mono num">{fmtInt(r.count)}</td>
+                </tr>
               ))}
             </tbody>
           </table>
         </div>
         <div className="subsection">
-          <h3>Rarefaction (ASV richness vs. sequencing depth)</h3>
-          <p className="muted small">If the curve is still rising, more sequencing would likely detect more ASVs.</p>
+          <h3>Rarefaction &amp; Sequencing Saturation</h3>
+          <p className="muted small">Hurlbert expected species accumulation vs. read depth. A plateau indicates sufficient sampling.</p>
           <RarefactionChart points={curve} />
         </div>
       </div>
@@ -108,7 +132,7 @@ function RarefactionChart({ points }: { points: { depth: number; richness: numbe
   const W = 420, H = 180, L = 48, B = 28, T = 8, R = 12;
   const maxX = points[points.length - 1]?.depth || 1;
   const yStep = niceStep(Math.max(...points.map((p) => p.richness)), 4);
-  const maxY = Math.ceil(Math.max(...points.map((p) => p.richness)) / yStep) * yStep || 1; // top gridline = a label
+  const maxY = Math.ceil(Math.max(...points.map((p) => p.richness)) / yStep) * yStep || 1;
   const xStep = niceStep(maxX, 4);
   const x = (d: number) => L + (d / maxX) * (W - L - R);
   const y = (r: number) => T + (1 - r / maxY) * (H - T - B);

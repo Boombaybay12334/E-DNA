@@ -5,6 +5,7 @@ import {
   type AsvView, type ConfidenceBand, type DivergenceBand, type Filters,
 } from '../lib/derive';
 import { MultiSelect } from './bits';
+import { IconAlert, IconClose, IconLeaf, IconSearch, IconShield } from './icons';
 
 interface Props {
   views: AsvView[];
@@ -46,20 +47,31 @@ export function FilterBar({ views, filters: f, defaults, methods, matched, setFi
 
   return (
     <div className="filterbar">
-      <input
-        type="search"
-        className="search"
-        placeholder="Search ASV ID or any taxon (e.g. Gastropoda)"
-        value={f.q}
-        onChange={(e) => setFilters({ q: e.target.value })}
-        aria-label="Search ASV ID or taxon"
-      />
+      <div className="search-wrap">
+        <span className="search-icon"><IconSearch size={15} /></span>
+        <input
+          type="search"
+          className="search"
+          placeholder="Search species, common name (e.g. Tuna, Coral, Earthworm), taxon, or ASV ID..."
+          value={f.q}
+          onChange={(e) => setFilters({ q: e.target.value })}
+          aria-label="Search species, common name, or ASV ID"
+        />
+        {f.q && (
+          <button type="button" className="search-clear-btn" onClick={() => setFilters({ q: '' })} aria-label="Clear search">
+            <IconClose size={13} />
+          </button>
+        )}
+      </div>
 
       <div className="presets" role="group" aria-label="Presets">
-        <span className="muted small">Presets:</span>
+        <span className="muted small">Quick Presets:</span>
         {PRESETS.map((p) => (
-          <button key={p.id} type="button" className="chip" aria-pressed={f.preset === p.id}
+          <button key={p.id} type="button" className={`chip chip-${p.id}`} aria-pressed={f.preset === p.id}
             title={p.hint} onClick={() => setFilters({ preset: p.id })}>
+            {p.id === 'threatened' && <span className="chip-icon"><IconShield size={13} /></span>}
+            {p.id === 'bioindicator' && <span className="chip-icon"><IconLeaf size={13} /></span>}
+            {p.id === 'invasive' && <span className="chip-icon"><IconAlert size={13} /></span>}
             {p.label}
           </button>
         ))}

@@ -2,6 +2,7 @@
 // so table, tree, summary and charts can never disagree with each other.
 
 import type { Asv, Report, ReportMethods } from '../types';
+import { getTaxonEcology, type EcologicalTag, type IucnStatus } from '../data/ecologicalData';
 
 export type ConfidenceBand = 'high' | 'moderate' | 'low' | 'unsupported';
 export type DivergenceBand = 'low' | 'medium' | 'high';
@@ -33,6 +34,12 @@ export interface AsvView {
   possiblyUnrepresented: boolean;
   contaminant: boolean;
   readsPct: number;
+  // Ecological and market intelligence:
+  commonName?: string;
+  iucnStatus?: IucnStatus;
+  ecoTag?: EcologicalTag;
+  tagLabel?: string;
+  ecoSummary?: string;
 }
 
 export function confidenceBand(c: number, m: ReportMethods): ConfidenceBand {
@@ -64,12 +71,15 @@ export function deriveViews(report: Report): AsvView[] {
     const divergence = divergenceBand(best?.identity ?? 0, m);
     const resolution: Resolution = deepest === speciesIdx ? 'species' : deepest < 0 ? 'unresolved' : 'partial';
     const contaminant = asv.flags.includes('LIKELY_CONTAMINANT');
+    const name = deepest >= 0 ? lineage[deepest] : 'Unresolved';
+    const eco = getTaxonEcology(name);
+
     return {
       asv,
       deepest,
       deepestRank: deepest >= 0 ? m.ranks[deepest] : 'None',
       lineage,
-      name: deepest >= 0 ? lineage[deepest] : 'Unresolved',
+      name,
       confidence,
       band: confidenceBand(confidence, m),
       bestIdentity: best?.identity ?? 0,
@@ -79,13 +89,26 @@ export function deriveViews(report: Report): AsvView[] {
       possiblyUnrepresented: resolution === 'partial' && divergence === 'high' && !contaminant,
       contaminant,
       readsPct: total ? (asv.reads / total) * 100 : 0,
+      commonName: eco?.commonName,
+      iucnStatus: eco?.iucnStatus,
+      ecoTag: eco?.tag,
+      tagLabel: eco?.tagLabel,
+      ecoSummary: eco?.summary,
     };
   });
 }
 
 // ---------- Presets & filters ----------
 
-export type PresetId = 'all' | 'hc-species' | 'review' | 'unrepresented' | 'unresolved';
+export type PresetId =
+  | 'all'
+  | 'hc-species'
+  | 'threatened'
+  | 'bioindicator'
+  | 'invasive'
+  | 'review'
+  | 'unrepresented'
+  | 'unresolved';
 
 export const PRESETS: { id: PresetId; label: string; hint: string; test: (v: AsvView) => boolean }[] = [
   { id: 'all', label: 'All', hint: 'No preset', test: () => true },
@@ -93,6 +116,21 @@ export const PRESETS: { id: PresetId; label: string; hint: string; test: (v: Asv
     id: 'hc-species', label: 'High-confidence species',
     hint: 'Resolved to species with High confidence, not flagged as contaminant',
     test: (v) => v.resolution === 'species' && v.band === 'high' && !v.contaminant,
+  },
+  {
+    id: 'threatened', label: 'Threatened (IUCN)',
+    hint: 'IUCN Red List listed taxa (Critically Endangered, Endangered, Vulnerable, Near Threatened)',
+    test: (v) => ['CR', 'EN', 'VU', 'NT'].includes(v.iucnStatus ?? ''),
+  },
+  {
+    id: 'bioindicator', label: 'Bioindicators',
+    hint: 'Sentinel species and ecological bioindicators',
+    test: (v) => v.ecoTag === 'bioindicator',
+  },
+  {
+    id: 'invasive', label: 'Biosecurity / Watch',
+    hint: 'Biosecurity watch, invasive species or pathogens detected',
+    test: (v) => v.ecoTag === 'invasive',
   },
   {
     id: 'review', label: 'Needs review',
@@ -149,14 +187,87 @@ export function applyFilters(views: AsvView[], f: Filters): AsvView[] {
       if (f.taxonExact && v.lineage.length !== f.taxon.length) return false;
     }
     if (q) {
-      // Matches ASV ID or any *supported* name, so "Gastropoda" returns everything within it.
-      if (!v.asv.id.toLowerCase().includes(q) && !v.lineage.some((n) => n.toLowerCase().includes(q))) return false;
+      // Matches ASV ID, common name, or any supported lineage name
+      const matchesId = v.asv.id.toLowerCase().includes(q);
+      const matchesCommon = v.commonName ? v.commonName.toLowerCase().includes(q) : false;
+      const matchesLineage = v.lineage.some((n) => n.toLowerCase().includes(q));
+      if (!matchesId && !matchesCommon && !matchesLineage) return false;
     }
     return true;
   });
 }
 
-// ---------- Summary metrics ----------
+// ---------- Summary metrics & Biodiversity indices ----------
+
+export interface BiodiversityIndices {
+  asvs: number;
+  reads: number;
+  speciesRichness: number;
+  shannon: number;
+  simpson: number;
+  evenness: number;
+  effectiveSpecies: number;
+  threatenedCount: number;
+  bioindicatorCount: number;
+  invasiveAlertCount: number;
+}
+
+export function calculateBiodiversityIndices(views: AsvView[]): BiodiversityIndices {
+  const reads = views.reduce((s, v) => s + v.asv.reads, 0);
+  const taxonReads = new Map<string, number>();
+  let threatenedCount = 0;
+  let bioindicatorCount = 0;
+  let invasiveAlertCount = 0;
+  const countedTaxa = new Set<string>();
+
+  for (const v of views) {
+    if (v.deepest < 0 || v.contaminant) continue;
+    const key = v.lineage.join('|');
+    taxonReads.set(key, (taxonReads.get(key) ?? 0) + v.asv.reads);
+
+    if (!countedTaxa.has(v.name)) {
+      countedTaxa.add(v.name);
+      if (['CR', 'EN', 'VU', 'NT'].includes(v.iucnStatus ?? '')) threatenedCount++;
+      if (v.ecoTag === 'bioindicator') bioindicatorCount++;
+      if (v.ecoTag === 'invasive') invasiveAlertCount++;
+    }
+  }
+
+  const speciesViews = views.filter((v) => v.resolution === 'species' && !v.contaminant);
+  const speciesRichness = new Set(speciesViews.map((v) => v.name)).size;
+
+  const totalValidReads = [...taxonReads.values()].reduce((s, r) => s + r, 0);
+  let shannon = 0;
+  let simpsonSum = 0;
+
+  if (totalValidReads > 0) {
+    for (const r of taxonReads.values()) {
+      const p = r / totalValidReads;
+      if (p > 0) {
+        shannon -= p * Math.log(p);
+        simpsonSum += p * p;
+      }
+    }
+  }
+
+  const S = taxonReads.size;
+  const evenness = S > 1 ? shannon / Math.log(S) : 0;
+  const simpson = 1 - simpsonSum;
+  const effectiveSpecies = Math.exp(shannon);
+
+  return {
+    asvs: views.length,
+    reads,
+    speciesRichness,
+    shannon,
+    simpson,
+    evenness,
+    effectiveSpecies,
+    threatenedCount,
+    bioindicatorCount,
+    invasiveAlertCount,
+  };
+}
 
 export function summarize(views: AsvView[], ranks: string[]) {
   const reads = views.reduce((s, v) => s + v.asv.reads, 0);

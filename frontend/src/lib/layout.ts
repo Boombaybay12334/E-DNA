@@ -6,7 +6,15 @@ export function useCssHeightVar<T extends HTMLElement>(name: string) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const set = () => document.documentElement.style.setProperty(name, `${el.offsetHeight}px`);
+    let prev = 0;
+    const set = () => {
+      const current = el.offsetHeight;
+      // Guard: only update if changed by more than 2px to avoid 1px border feedback loops
+      if (Math.abs(current - prev) > 2) {
+        prev = current;
+        document.documentElement.style.setProperty(name, `${current}px`);
+      }
+    };
     set();
     const ro = new ResizeObserver(set);
     ro.observe(el);
