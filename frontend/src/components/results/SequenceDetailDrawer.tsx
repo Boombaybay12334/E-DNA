@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { SequenceRecord, RunMetadata } from '../../types/contract';
 import { StatusBadge } from '../common/StatusBadge';
 import {
@@ -25,6 +25,20 @@ export const SequenceDetailDrawer: React.FC<SequenceDetailDrawerProps> = ({
   onClose,
 }) => {
   const [copiedSeq, setCopiedSeq] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    if (sequence) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [sequence, onClose]);
 
   if (!sequence) return null;
 

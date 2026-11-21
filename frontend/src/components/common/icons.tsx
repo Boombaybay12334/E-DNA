@@ -35,4 +35,5 @@ export {
   ArrowUpDown as IconArrowUpDown,
   ChevronRight as IconChevronRight,
   ChevronLeft as IconChevronLeft,
+  Menu as IconMenu,
 } from 'lucide-react';

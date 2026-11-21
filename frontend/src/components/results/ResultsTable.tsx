@@ -61,6 +61,17 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
     return item?.confidence ?? null;
   };
 
+  // Check if any filter is actively narrowing results
+  const isFiltered = searchTerm !== '' || selectedStatus !== 'ALL' || selectedRank !== 'ALL' || warningOnly;
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setSelectedStatus('ALL');
+    setSelectedRank('ALL');
+    setWarningOnly(false);
+    setCurrentPage(1);
+  };
+
   // Filter sequences
   const filteredSequences = useMemo(() => {
     return result.sequences.filter((seq) => {
@@ -181,7 +192,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
     );
   };
 
-  // Status counts
+  // Status counts for current dataset at active tau
   const countFull = result.sequences.filter(s => s.status === 'assigned_full').length;
   const countPartial = result.sequences.filter(s => s.status === 'assigned_partial').length;
   const countUnassigned = result.sequences.filter(s => s.status === 'unassigned').length;
@@ -193,7 +204,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
       <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.04)] space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-4">
           {/* Threshold slider and presets */}
-          <div className="flex items-center gap-4 flex-1 min-w-[340px] max-w-2xl">
+          <div className="flex items-center gap-4 flex-1 min-w-[320px] max-w-3xl">
             <div className="flex items-center gap-2">
               <div className="p-1.5 bg-teal-50 text-teal-700 rounded-lg border border-teal-200/60">
                 <IconSliders className="w-4 h-4" />
@@ -201,7 +212,10 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
               <div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-semibold text-slate-800">Operating Cutoff:</span>
-                  <span className="font-mono text-xs font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                  <span
+                    className="font-mono text-xs font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200 cursor-help"
+                    title="Operating threshold \u03c4: classifications halt at the first rank failing this cutoff"
+                  >
                     &tau; = {tau.toFixed(2)}
                   </span>
                 </div>
@@ -223,7 +237,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
               <span className="text-[11px] text-slate-400 font-mono">0.99</span>
             </div>
 
-            {/* Presets */}
+            {/* Presets clearly identified as user-configurable guidelines */}
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => onThresholdChange(0.85)}
@@ -232,20 +246,20 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                     ? 'bg-teal-700 text-white shadow-2xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
-                title="High Precision: 2.2% error on known PR2 holdouts"
+                title="Configurable Preset: Strict (0.85) — High precision cutoff, suppresses over-classification on novel clades"
               >
                 Strict (0.85)
               </button>
               <button
-                onClick={() => onThresholdChange(0.70)}
+                onClick={() => onThresholdChange(0.60)}
                 className={`px-2.5 py-1 text-[11px] rounded-lg font-medium transition-all ${
-                  Math.abs(tau - 0.70) < 0.01
+                  Math.abs(tau - 0.60) < 0.01
                     ? 'bg-teal-700 text-white shadow-2xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
-                title="Balanced trade-off recommended for coastal biomonitoring"
+                title="Configurable Preset: Balanced (0.60) — Standard project default matching Contract v1.0 baseline"
               >
-                Balanced (0.70)
+                Balanced (0.60)
               </button>
               <button
                 onClick={() => onThresholdChange(0.50)}
@@ -254,7 +268,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                     ? 'bg-teal-700 text-white shadow-2xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
-                title="Exploratory: Higher taxonomic resolution depth"
+                title="Configurable Preset: Exploratory (0.50) — Permissive cutoff, maximizes taxonomic resolution depth"
               >
                 Exploratory (0.50)
               </button>
@@ -266,6 +280,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
             <button
               onClick={() => exportResultsCsv(result)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-2xs"
+              title="Download CSV export with sequence IDs, statuses, deepest ranks, and confidence scores"
             >
               <IconFileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
               <span>Export CSV</span>
@@ -273,6 +288,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
             <button
               onClick={() => exportResultsJson(result)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-2xs"
+              title="Download complete Contract JSON v1.0 artifact"
             >
               <IconFileCode className="w-3.5 h-3.5 text-indigo-600" />
               <span>Contract JSON</span>
@@ -280,23 +296,29 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
           </div>
         </div>
 
-        {/* Live Resolution Context Pill */}
-        <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-          <div className="flex items-center gap-2 text-slate-500">
+        {/* Live Resolution Context Pill & Rule Explanation */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
+          <div className="flex flex-wrap items-center gap-2 text-slate-600">
             <span className="w-2 h-2 rounded-full bg-teal-500" />
             <span>
-              At current <span className="font-mono font-semibold text-slate-700">&tau; = {tau.toFixed(2)}</span>:
+              At current <span className="font-mono font-semibold text-slate-800">&tau; = {tau.toFixed(2)}</span>:
             </span>
-            <span className="font-semibold text-slate-800">
-              {countFull} of {result.sequences.length} sequences resolved to Genus ({((countFull / (result.sequences.length || 1)) * 100).toFixed(0)}%)
+            <span className="font-semibold text-slate-900">
+              {countFull} of {result.sequences.length} sequences reach Genus ({((countFull / (result.sequences.length || 1)) * 100).toFixed(0)}%)
             </span>
             <span>•</span>
-            <span className="text-amber-700 font-medium">{countPartial} intermediate</span>
+            <span className="text-amber-700 font-medium">{countPartial} partially assigned</span>
             <span>•</span>
             <span className="text-slate-500">{countUnassigned} unassigned</span>
+            {countInvalid > 0 && (
+              <>
+                <span>•</span>
+                <span className="text-rose-600 font-medium">{countInvalid} QC rejected</span>
+              </>
+            )}
           </div>
-          <span className="text-[11px] text-slate-400 italic hidden md:inline">
-            Rule: Depth = leading consecutive ranks with confidence &ge; &tau;
+          <span className="text-[11px] text-slate-400 italic">
+            Threshold &tau; filters accepted classifications; it does not alter underlying model predictions.
           </span>
         </div>
       </div>
@@ -321,6 +343,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
               <button
                 onClick={() => setSearchTerm('')}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                aria-label="Clear search"
               >
                 <IconX className="w-3.5 h-3.5" />
               </button>
@@ -328,30 +351,32 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
           </div>
 
           {/* Deepest Rank Filter */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
-              <IconFilter className="w-3.5 h-3.5 text-slate-400" />
-              <span>Rank:</span>
-            </label>
-            <select
-              value={selectedRank}
-              onChange={(e) => {
-                setSelectedRank(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 cursor-pointer"
-            >
-              <option value="ALL">All Ranks ({result.sequences.length})</option>
-              {result.run.ranks.map((rank) => (
-                <option key={rank} value={rank}>
-                  {rank.charAt(0).toUpperCase() + rank.slice(1)}
-                </option>
-              ))}
-              <option value="unassigned">Unassigned</option>
-            </select>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
+                <IconFilter className="w-3.5 h-3.5 text-slate-400" />
+                <span>Rank:</span>
+              </label>
+              <select
+                value={selectedRank}
+                onChange={(e) => {
+                  setSelectedRank(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 cursor-pointer"
+              >
+                <option value="ALL">All Ranks ({result.sequences.length})</option>
+                {result.run.ranks.map((rank) => (
+                  <option key={rank} value={rank}>
+                    {rank.charAt(0).toUpperCase() + rank.slice(1)}
+                  </option>
+                ))}
+                <option value="unassigned">Unassigned</option>
+              </select>
+            </div>
 
             {/* Warnings only toggle */}
-            <label className="inline-flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer ml-3 select-none">
+            <label className="inline-flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={warningOnly}
@@ -363,9 +388,21 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
               />
               <span className="flex items-center gap-1">
                 <IconAlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                QC Flags only
+                <span>QC Flags only</span>
               </span>
             </label>
+
+            {/* Clear Filters Button */}
+            {isFiltered && (
+              <button
+                onClick={handleClearFilters}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                title="Reset all filters and search query"
+              >
+                <IconX className="w-3 h-3" />
+                <span>Clear Filters</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -377,7 +414,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
             { id: 'assigned_full' as const, label: 'Fully Assigned (Genus)', count: countFull },
             { id: 'assigned_partial' as const, label: 'Partially Assigned', count: countPartial },
             { id: 'unassigned' as const, label: 'Unassigned', count: countUnassigned },
-            { id: 'invalid_input' as const, label: 'Invalid / Rejected', count: countInvalid },
+            { id: 'invalid_input' as const, label: 'QC Rejected', count: countInvalid },
           ].map((tab) => {
             const isSelected = selectedStatus === tab.id;
             return (
@@ -474,7 +511,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                     {renderSortIcon('confidence')}
                   </div>
                 </th>
-                <th className="py-3 px-3 text-slate-400">QC Flags</th>
+                <th className="py-3 px-3 text-slate-500">QC Flags</th>
                 <th className="py-3 px-4 text-right">Action</th>
               </tr>
             </thead>
@@ -489,6 +526,14 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                       <p className="text-xs text-slate-400 max-w-sm">
                         Try adjusting your search criteria, clearing status filters, or lowering threshold &tau;.
                       </p>
+                      {isFiltered && (
+                        <button
+                          onClick={handleClearFilters}
+                          className="mt-2 px-3 py-1.5 text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100 transition-colors"
+                        >
+                          Clear all filters
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -498,7 +543,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                   const isSelected = selectedSequenceId === seq.id;
                   const isChecked = selectedIds.has(seq.id);
 
-                  // Extract leading lineage path for quick visual scanning
+                  // Extract leading assigned lineage path for quick visual scanning
                   const leadingTaxa = seq.lineage
                     .filter(l => l.assigned && l.taxon)
                     .map(l => l.taxon);
@@ -518,6 +563,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                           onClick={(e) => handleToggleSelectOne(seq.id, e)}
                           onChange={() => {}}
                           className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+                          aria-label={`Select sequence ${seq.id}`}
                         />
                       </td>
 
@@ -550,7 +596,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                               {seq.deepest_taxon}
                             </div>
                             {leadingTaxa.length > 1 && (
-                              <div className="text-[10px] text-slate-400 truncate max-w-[240px]">
+                              <div className="text-[10px] text-slate-400 truncate max-w-[240px]" title={leadingTaxa.join(' \u203A ')}>
                                 {leadingTaxa.slice(0, -1).join(' \u203A ')}
                               </div>
                             )}
@@ -562,7 +608,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
 
                       <td className="py-3 px-3">
                         {conf !== null ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2" title={`Model calibrated accuracy estimate at deepest rank: ${conf.toFixed(3)}`}>
                             <div className="w-14 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                               <div
                                 className={`h-full rounded-full transition-all duration-300 ${
@@ -587,10 +633,10 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                       <td className="py-3 px-3">
                         {seq.warnings && seq.warnings.length > 0 ? (
                           <span
-                            className="inline-flex items-center gap-1 text-[11px] font-mono text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200"
+                            className="inline-flex items-center gap-1 text-[11px] font-mono text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200"
                             title={seq.warnings.join(', ')}
                           >
-                            <IconAlertTriangle className="w-3 h-3 text-rose-600" />
+                            <IconAlertTriangle className="w-3 h-3 text-amber-600" />
                             {seq.warnings[0]}
                           </span>
                         ) : (

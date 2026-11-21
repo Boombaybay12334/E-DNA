@@ -6,15 +6,24 @@ import {
   IconUploadCloud,
   IconBarChart,
   IconShieldCheck,
+  IconX,
 } from '../common/icons';
 
 interface AppSidebarProps {
   currentView: AppView;
   onNavigate: (view: AppView) => void;
   run: RunMetadata;
+  isOpenMobile?: boolean;
+  onCloseMobile?: () => void;
 }
 
-export const AppSidebar: FC<AppSidebarProps> = ({ currentView, onNavigate, run }) => {
+export const AppSidebar: FC<AppSidebarProps> = ({
+  currentView,
+  onNavigate,
+  run,
+  isOpenMobile = false,
+  onCloseMobile,
+}) => {
   const navItems = [
     {
       id: 'overview' as AppView,
@@ -25,7 +34,7 @@ export const AppSidebar: FC<AppSidebarProps> = ({ currentView, onNavigate, run }
     {
       id: 'results' as AppView,
       label: 'Classification Results',
-      description: 'Taxonomic ladder & dynamic tau',
+      description: 'Taxonomic ladder & dynamic \u03c4',
       icon: IconTable,
     },
     {
@@ -42,8 +51,22 @@ export const AppSidebar: FC<AppSidebarProps> = ({ currentView, onNavigate, run }
     },
   ];
 
-  return (
-    <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0 border-r border-slate-800 h-full overflow-y-auto">
+  const sidebarContent = (
+    <div className="flex flex-col h-full bg-slate-900 text-slate-300">
+      {/* Mobile Header */}
+      <div className="p-4 flex items-center justify-between md:hidden border-b border-slate-800">
+        <span className="font-bold text-white text-sm">Navigation Menu</span>
+        {onCloseMobile && (
+          <button
+            onClick={onCloseMobile}
+            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            aria-label="Close navigation menu"
+          >
+            <IconX className="w-5 h-5" />
+          </button>
+        )}
+      </div>
+
       {/* Navigation menu */}
       <div className="p-4 space-y-1">
         <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 px-3 py-2">
@@ -57,7 +80,10 @@ export const AppSidebar: FC<AppSidebarProps> = ({ currentView, onNavigate, run }
           return (
             <button
               key={item.id}
-              onClick={() => onNavigate(item.id)}
+              onClick={() => {
+                onNavigate(item.id);
+                if (onCloseMobile) onCloseMobile();
+              }}
               className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
                 isActive
                   ? 'bg-teal-600 text-white font-medium shadow-xs'
@@ -112,9 +138,32 @@ export const AppSidebar: FC<AppSidebarProps> = ({ currentView, onNavigate, run }
         </div>
 
         <div className="pt-2 border-t border-slate-700/60 text-[10px] text-slate-400 leading-snug">
-          Species-level assignments are not supported by the 18S V4 marker.
+          Species-level assignments are not supported by the current marker/classifier configuration.
         </div>
       </div>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Desktop Persistent Sidebar */}
+      <aside className="hidden md:flex w-64 shrink-0 border-r border-slate-800 h-full overflow-y-auto">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile Drawer */}
+      {isOpenMobile && (
+        <div className="fixed inset-0 z-40 md:hidden flex">
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+            onClick={onCloseMobile}
+            aria-hidden="true"
+          />
+          <div className="relative w-72 max-w-[85vw] h-full shadow-2xl z-50 animate-in slide-in-from-left duration-200">
+            {sidebarContent}
+          </div>
+        </div>
+      )}
+    </>
   );
 };

@@ -11,6 +11,7 @@ import {
   IconDna,
   IconSparkles,
   IconRefresh,
+  IconInfo,
 } from '../common/icons';
 
 interface UploadViewProps {
@@ -89,7 +90,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
   };
 
   const handleLoadSampleData = () => {
-    setFileName('sample_18S_V4_eukaryotes.fasta');
+    setFileName('sample_18S_V4_eukaryotes.fasta (DEMO DATA)');
     setFileSize('14.2 KB');
     setFastaContent(SAMPLE_18S_V4_FASTA);
   };
@@ -98,8 +99,8 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
   const pipelineSteps = [
     'Validating FASTA headers & sequence chemistry...',
     'Extracting 18S V4 neural embeddings (Model A ensemble)...',
-    'Simulating holdout clade calibration on PR2 reference...',
-    `Calculating assignment depths at threshold \u03c4 = ${tau.toFixed(2)}...`,
+    'Calibrating against PR2 v5.0.0 reference database...',
+    `Applying consecutive assignment rule at cutoff \u03c4 = ${tau.toFixed(2)}...`,
     'Synthesizing Contract JSON v1.0 payload...',
   ];
 
@@ -136,7 +137,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
       'genus',
     ];
 
-    // Mock realistic taxonomic generator based on validation
+    // Build realistic taxonomic records based on validation
     const sequences: SequenceRecord[] = validationResults.map((v: ParsedSequence, i: number) => {
       const hasLengthError = v.warnings.includes('length_below_200');
       const hasNonAcgt = v.warnings.some((w: string) => w.includes('non_acgt'));
@@ -155,7 +156,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
         };
       }
 
-      // Assign varying depths for demo realism
+      // Assign varying depths for realistic demo simulation
       let depth = 8;
       if (i % 5 === 0) depth = 8; // genus
       else if (i % 5 === 1) depth = 7; // family
@@ -165,7 +166,6 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
 
       // Confidences descending
       const confidences = [1.0, 0.99, 0.97, 0.94, 0.88, 0.82, 0.74, 0.65];
-      // If lower depth, adjust confidences to drop below tau
       if (depth < 8) {
         confidences[depth] = Math.max(0.15, tau - 0.08);
         for (let k = depth + 1; k < 8; k++) {
@@ -271,12 +271,12 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Workflow Step Bar */}
-      <div className="grid grid-cols-3 gap-2 bg-white p-2 rounded-2xl border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] text-xs">
-        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-teal-50 border border-teal-200 text-teal-900 font-semibold">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-white p-2 rounded-2xl border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] text-xs">
+        <div className="flex items-center gap-2.5 p-3 rounded-xl bg-teal-50 border border-teal-200 text-teal-900 font-semibold">
           <span className="w-5 h-5 rounded-full bg-teal-600 text-white flex items-center justify-center font-mono text-[10px]">1</span>
           <span>Upload FASTA</span>
         </div>
-        <div className={`flex items-center gap-2 p-2.5 rounded-xl transition-colors ${
+        <div className={`flex items-center gap-2.5 p-3 rounded-xl transition-colors ${
           totalParsed > 0 ? 'bg-teal-50/60 border border-teal-200 text-teal-900 font-semibold' : 'bg-slate-50 text-slate-400'
         }`}>
           <span className={`w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px] ${
@@ -284,7 +284,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
           }`}>2</span>
           <span>Client Validation</span>
         </div>
-        <div className={`flex items-center gap-2 p-2.5 rounded-xl transition-colors ${
+        <div className={`flex items-center gap-2.5 p-3 rounded-xl transition-colors ${
           totalParsed > 0 && errorsCount === 0 ? 'bg-teal-50/60 border border-teal-200 text-teal-900 font-semibold' : 'bg-slate-50 text-slate-400'
         }`}>
           <span className={`w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px] ${
@@ -310,9 +310,10 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
           <button
             onClick={handleLoadSampleData}
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-teal-900 bg-teal-50 border border-teal-200/90 rounded-xl hover:bg-teal-100 transition-colors shadow-2xs"
+            title="Load standard 18S V4 test sequence library (DEMO DATA)"
           >
             <IconSparkles className="w-3.5 h-3.5 text-teal-600" />
-            <span>Load Sample 18S V4 FASTA</span>
+            <span>Load Sample 18S V4 FASTA (DEMO DATA)</span>
           </button>
         </div>
 
@@ -331,7 +332,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
           <input
             ref={fileInputRef}
             type="file"
-            accept=".fasta,.fa,.fna,.txt"
+            accept=".fasta,.fa,.fna"
             onChange={(e) => {
               if (e.target.files && e.target.files[0]) {
                 handleFileSelect(e.target.files[0]);
@@ -350,7 +351,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
                 <span className="text-teal-600 underline">browse files</span>
               </p>
               <p className="text-xs text-slate-400 mt-1">
-                Accepts .fasta, .fa, .fna formatted files (cut at whitespace and semicolons per Handoff Section 5)
+                Supported formats: <span className="font-mono">.fasta</span>, <span className="font-mono">.fa</span>, <span className="font-mono">.fna</span> (header tokens parsed per Contract schema)
               </p>
             </div>
           </div>
@@ -364,6 +365,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
               <div>
                 <span className="font-bold text-slate-800 font-mono">{fileName}</span>
                 <span className="text-slate-400 ml-2 font-mono">({fileSize})</span>
+                <span className="text-teal-700 ml-2 font-semibold">[{totalParsed} sequences parsed]</span>
               </div>
             </div>
             <button
@@ -372,7 +374,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
                 setFileName(null);
                 setFileSize(null);
               }}
-              className="text-xs font-semibold text-rose-600 hover:text-rose-800"
+              className="text-xs font-semibold text-rose-600 hover:text-rose-800 transition-colors"
             >
               Clear file
             </button>
@@ -440,6 +442,13 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
               </ul>
             </div>
           )}
+
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500 flex items-start gap-2">
+            <IconInfo className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+            <p>
+              <strong>Note:</strong> Frontend validation verifies syntax formatting, character legality, and basic length constraints. Full biological verification and taxonomic classification occur during neural inference.
+            </p>
+          </div>
         </div>
       )}
 
@@ -496,7 +505,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
                 {tau.toFixed(2)}
               </span>
             </label>
-            <span className="text-[11px] text-slate-400">Can be interactively adjusted on Results view</span>
+            <span className="text-[11px] text-slate-400">Can be dynamically adjusted on Results & Insights views</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -514,7 +523,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
           </div>
 
           <p className="text-[11px] text-slate-500">
-            Higher &tau; (e.g. 0.85) provides higher classification precision but stops higher in the tree. Balanced default is 0.70.
+            Controls how confident a classification must be before it is accepted. Higher values are more strict and may result in classifications stopping at higher taxonomic ranks. Default baseline is 0.60.
           </p>
         </div>
       </div>

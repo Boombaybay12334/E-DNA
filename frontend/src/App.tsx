@@ -34,6 +34,7 @@ export function App() {
   // Modal states
   const [isMetadataOpen, setIsMetadataOpen] = useState<boolean>(false);
   const [isMethodGuideOpen, setIsMethodGuideOpen] = useState<boolean>(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
 
   // Retrieve base run from runs array
   const baseRun = useMemo(() => {
@@ -77,18 +78,22 @@ export function App() {
         onOpenMetadata={() => setIsMetadataOpen(true)}
         onOpenMethodGuide={() => setIsMethodGuideOpen(true)}
         tau={tau}
+        onToggleMobileNav={() => setIsMobileNavOpen((prev) => !prev)}
       />
 
       {/* Main Layout Area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         {/* Navigation Sidebar */}
         <AppSidebar
           currentView={currentView}
           onNavigate={(view) => {
             setCurrentView(view);
             setSelectedSequence(null);
+            setIsMobileNavOpen(false);
           }}
           run={activeRun.run}
+          isOpenMobile={isMobileNavOpen}
+          onCloseMobile={() => setIsMobileNavOpen(false)}
         />
 
         {/* Content View Container */}

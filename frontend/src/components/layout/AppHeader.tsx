@@ -1,6 +1,6 @@
 import type { FC } from 'react';
 import type { ClassificationResult } from '../../types/contract';
-import { IconDna, IconSliders, IconInfo, IconBook } from '../common/icons';
+import { IconDna, IconSliders, IconInfo, IconBook, IconMenu } from '../common/icons';
 
 interface AppHeaderProps {
   currentRun: ClassificationResult;
@@ -9,6 +9,7 @@ interface AppHeaderProps {
   onOpenMetadata: () => void;
   onOpenMethodGuide: () => void;
   tau: number;
+  onToggleMobileNav?: () => void;
 }
 
 export const AppHeader: FC<AppHeaderProps> = ({
@@ -18,13 +19,27 @@ export const AppHeader: FC<AppHeaderProps> = ({
   onOpenMetadata,
   onOpenMethodGuide,
   tau,
+  onToggleMobileNav,
 }) => {
+  const modelName = currentRun.run.model.name || 'Model A';
+  const modelVer = currentRun.run.model.version || 'calibrated';
+
   return (
-    <header className="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-6 flex items-center justify-between sticky top-0 z-30 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
-      {/* Left: Brand Identity */}
-      <div className="flex items-center gap-4">
+    <header className="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
+      {/* Left: Mobile Nav Button + Brand Identity */}
+      <div className="flex items-center gap-3">
+        {onToggleMobileNav && (
+          <button
+            onClick={onToggleMobileNav}
+            className="md:hidden p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+            aria-label="Toggle navigation menu"
+          >
+            <IconMenu className="w-5 h-5" />
+          </button>
+        )}
+
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-teal-700 to-teal-500 flex items-center justify-center text-white shadow-sm ring-2 ring-teal-500/20">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-teal-700 to-teal-500 flex items-center justify-center text-white shadow-sm ring-2 ring-teal-500/20 shrink-0">
             <IconDna className="w-5 h-5" />
           </div>
           <div>
@@ -32,7 +47,10 @@ export const AppHeader: FC<AppHeaderProps> = ({
               <span className="font-bold text-slate-900 tracking-tight text-base font-sans">
                 eDNA Explorer
               </span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider bg-teal-50 text-teal-800 border border-teal-200/80 px-1.5 py-0.5 rounded-md font-mono shadow-2xs">
+              <span
+                className="text-[10px] font-semibold uppercase tracking-wider bg-teal-50 text-teal-800 border border-teal-200/80 px-1.5 py-0.5 rounded-md font-mono shadow-2xs cursor-help"
+                title="Marker: 18S ribosomal RNA V4 amplicon (eukaryotic target, capped at genus)"
+              >
                 18S V4
               </span>
             </div>
@@ -41,9 +59,12 @@ export const AppHeader: FC<AppHeaderProps> = ({
                 Taxonomic Classification Platform
               </span>
               <span className="text-slate-300 hidden sm:inline">•</span>
-              <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-medium bg-emerald-50 px-1.5 py-0.2 rounded">
+              <span
+                className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-medium bg-emerald-50 px-1.5 py-0.2 rounded cursor-help"
+                title={`Classifier: ${modelName} v${modelVer} (calibrated on PR2 clade holdouts)`}
+              >
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Model A Calibrated</span>
+                <span className="truncate max-w-[120px] sm:max-w-none">{modelName}</span>
               </span>
             </div>
           </div>
@@ -51,17 +72,17 @@ export const AppHeader: FC<AppHeaderProps> = ({
       </div>
 
       {/* Middle: Active Run Selector & Threshold */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
         {/* Run Selector */}
         <div className="relative">
           <label htmlFor="run-selector" className="sr-only">Select Analysis Run</label>
-          <div className="flex items-center gap-2 bg-slate-50/90 border border-slate-200 rounded-lg px-3 py-1.5 hover:border-slate-300 transition-colors shadow-2xs">
+          <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-50/90 border border-slate-200 rounded-lg px-2.5 sm:px-3 py-1.5 hover:border-slate-300 transition-colors shadow-2xs">
             <span className="text-xs text-slate-500 font-medium hidden md:inline">Run:</span>
             <select
               id="run-selector"
               value={currentRun.run.run_id}
               onChange={(e) => onSelectRun(e.target.value)}
-              className="bg-transparent text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer pr-3 font-mono"
+              className="bg-transparent text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer pr-2 font-mono max-w-[140px] sm:max-w-[200px] truncate"
             >
               {allRuns.map((r) => (
                 <option key={r.run.run_id} value={r.run.run_id}>
@@ -74,8 +95,8 @@ export const AppHeader: FC<AppHeaderProps> = ({
 
         {/* Operating Threshold Indicator */}
         <div
-          className="hidden sm:flex items-center gap-1.5 text-xs bg-teal-50 border border-teal-200 text-teal-900 px-2.5 py-1.5 rounded-lg shadow-2xs"
-          title="Current global confidence threshold applied to leading rank ladder"
+          className="hidden sm:flex items-center gap-1.5 text-xs bg-teal-50 border border-teal-200 text-teal-900 px-2.5 py-1.5 rounded-lg shadow-2xs cursor-help"
+          title="Current operating confidence threshold (\u03c4). Consecutive leading ranks meeting or exceeding this cutoff are accepted."
         >
           <IconSliders className="w-3.5 h-3.5 text-teal-700" />
           <span className="font-medium text-slate-600">&tau; =</span>
@@ -85,8 +106,8 @@ export const AppHeader: FC<AppHeaderProps> = ({
         {/* Method Guide Button */}
         <button
           onClick={onOpenMethodGuide}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs"
-          title="Learn how 18S V4 classification, threshold tau, and PR2 reference work"
+          className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs"
+          title="Learn how 18S V4 classification, threshold \u03c4, and PR2 reference work"
         >
           <IconBook className="w-3.5 h-3.5 text-teal-600" />
           <span className="hidden lg:inline">Method Guide</span>
@@ -95,7 +116,7 @@ export const AppHeader: FC<AppHeaderProps> = ({
         {/* Run Audit / Metadata Button */}
         <button
           onClick={onOpenMetadata}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs"
+          className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs"
           title="View full model, reference, and training lineage metadata"
         >
           <IconInfo className="w-3.5 h-3.5 text-slate-500" />
@@ -105,7 +126,7 @@ export const AppHeader: FC<AppHeaderProps> = ({
 
       {/* Right: User Profile */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200">
+        <div className="flex items-center gap-2.5 pl-2 sm:pl-3 border-l border-slate-200">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 border border-slate-300 flex items-center justify-center text-slate-700 font-semibold text-xs shadow-2xs">
             EV
           </div>

@@ -22,6 +22,7 @@ import {
   IconArrowRight,
   IconShieldAlert,
   IconChevronRight,
+  IconInfo,
 } from '../common/icons';
 
 interface OverviewDashboardProps {
@@ -54,11 +55,12 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   const pctUnassigned = ((nUnassigned / total) * 100).toFixed(1);
   const pctInvalid = ((nInvalid / total) * 100).toFixed(1);
 
-  // Deepest Rank Distribution Chart Data
+  // Deepest Rank Distribution Chart Data (ordered root-to-leaf plus unassigned)
   const rankOrder = [...run.ranks, 'unassigned'];
   const rankChartData = rankOrder.map((rank) => ({
     rank: rank.charAt(0).toUpperCase() + rank.slice(1),
     count: summary.n_by_deepest_rank[rank] ?? 0,
+    isUnassigned: rank === 'unassigned',
   }));
 
   // Status Donut Chart Data
@@ -69,50 +71,73 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
     { name: 'QC Rejected', value: nInvalid, color: '#e11d48' }, // rose-600
   ].filter((d) => d.value > 0);
 
+  // Helper to determine dataset classification label
+  const getRunLabel = (runId: string) => {
+    if (runId.includes('18s-example') || runId.includes('demo') || runId.includes('example')) {
+      return { text: 'SAMPLE BENCHMARK FIXTURE', isSample: true };
+    }
+    if (runId.includes('tara-oceans')) {
+      return { text: 'DEMO MARINE DATASET', isSample: true };
+    }
+    return { text: 'USER ANALYSIS RUN', isSample: false };
+  };
+
   return (
     <div className="space-y-6">
-      {/* Hero / Context Banner */}
+      {/* Run Summary / Context Section */}
       <div className="bg-gradient-to-r from-white via-white to-teal-50/30 rounded-2xl border border-slate-200/90 p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex flex-wrap items-center justify-between gap-6">
-        <div className="space-y-1.5 max-w-3xl">
+        <div className="space-y-2 max-w-3xl">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-teal-800 bg-teal-50 border border-teal-200/80 px-2 py-0.5 rounded-md shadow-2xs font-mono">
               Active Analysis Run
             </span>
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-xs text-slate-700 font-mono font-semibold">
               {run.run_id}
             </span>
             <span className="text-slate-300">•</span>
             <span className="text-xs text-slate-500">
-              Evaluated {new Date(run.created_utc).toLocaleDateString()}
+              Evaluated {new Date(run.created_utc).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              Status: Completed
             </span>
           </div>
 
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
             18S V4 Amplicon Biodiversity Intelligence
           </h1>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Neural calibration on <strong>PR2 v{run.reference.version}</strong> (99% clustered). Classifications resolved from domain down to genus rank at confidence cutoff <span className="font-mono font-semibold text-slate-700">&tau; = {tau.toFixed(2)}</span>.
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Neural classification calibrated on <strong>{run.reference.name} v{run.reference.version}</strong> ({run.reference.subset || '99% clustered'}). Lineages resolved from domain down to genus rank at confidence cutoff <span className="font-mono font-semibold text-slate-800">&tau; = {tau.toFixed(2)}</span>.
           </p>
 
-          <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-slate-500">
-            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">Amplicon: 18S V4</span>
-            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">Model: {run.model.name}</span>
-            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">Reference: PR2</span>
-            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">Resolution: Genus (Capped)</span>
+          <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-slate-600">
+            <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md font-medium border border-slate-200/60">
+              Marker: {run.marker.gene} {run.marker.region}
+            </span>
+            <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md font-medium border border-slate-200/60">
+              Model: {run.model.name} (v{run.model.version})
+            </span>
+            <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md font-medium border border-slate-200/60">
+              Reference: {run.reference.name} v{run.reference.version}
+            </span>
+            <span className="bg-amber-50 text-amber-900 px-2.5 py-1 rounded-md font-medium border border-amber-200/80">
+              Max Resolution: Genus (Capped)
+            </span>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5">
           <button
             onClick={onNavigateToUpload}
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-teal-600 rounded-xl hover:bg-teal-700 transition-all shadow-xs hover:shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-teal-600 rounded-xl hover:bg-teal-700 transition-all shadow-xs hover:shadow-sm"
           >
             <IconUploadCloud className="w-4 h-4" />
             <span>Upload New FASTA</span>
           </button>
           <button
             onClick={onNavigateToResults}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors shadow-2xs"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors shadow-2xs"
           >
             <span>Explore Lineages</span>
             <IconArrowRight className="w-3.5 h-3.5 text-slate-400" />
@@ -134,7 +159,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             <span className="text-3xl font-bold text-slate-900 font-mono">{summary.n_sequences}</span>
             <span className="text-xs text-slate-400 font-medium">ASVs</span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-1">Evaluated 18S V4 library</p>
+          <p className="text-[11px] text-slate-500 mt-1">Evaluated 18S V4 library</p>
           <div className="w-full bg-slate-100 h-1 rounded-full mt-3 overflow-hidden">
             <div className="h-full bg-slate-700 w-full" />
           </div>
@@ -154,7 +179,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               {pctFull}%
             </span>
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">Fully assigned to genus rank</p>
+          <p className="text-[11px] text-slate-500 mt-1">Fully assigned down to genus rank</p>
           <div className="w-full bg-emerald-50 h-1 rounded-full mt-3 overflow-hidden">
             <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${pctFull}%` }} />
           </div>
@@ -180,7 +205,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           </div>
         </div>
 
-        {/* Unassigned */}
+        {/* Unassigned at Root */}
         <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] relative overflow-hidden group hover:border-slate-300 transition-colors">
           <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
             <span>Unassigned at Root</span>
@@ -194,7 +219,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               {pctUnassigned}%
             </span>
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">Domain confidence &lt; &tau;</p>
+          <p className="text-[11px] text-slate-500 mt-1">Root domain confidence &lt; &tau;</p>
           <div className="w-full bg-slate-100 h-1 rounded-full mt-3 overflow-hidden">
             <div className="h-full bg-slate-400 rounded-full" style={{ width: `${pctUnassigned}%` }} />
           </div>
@@ -214,7 +239,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               {pctInvalid}%
             </span>
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">&lt;200 bp or non-ACGT</p>
+          <p className="text-[11px] text-slate-500 mt-1">&lt;200 bp or non-ACGT chemistry</p>
           <div className="w-full bg-rose-50 h-1 rounded-full mt-3 overflow-hidden">
             <div className="h-full bg-rose-500 rounded-full" style={{ width: `${pctInvalid}%` }} />
           </div>
@@ -225,7 +250,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Deepest Rank Distribution Bar Chart (2 cols) */}
         <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="text-sm font-bold text-slate-900 tracking-tight">
                 Taxonomic Resolution Depth Distribution
@@ -234,14 +259,16 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                 Number of sequences reaching each rank before falling below threshold &tau; = {tau.toFixed(2)}
               </p>
             </div>
-            <span className="text-xs font-mono font-semibold text-teal-800 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-lg shadow-2xs">
-              {run.ranks.length} Ranks Monitored
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono font-semibold text-teal-800 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-lg shadow-2xs">
+                {run.ranks.length} Ranks Evaluated
+              </span>
+            </div>
           </div>
 
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={rankChartData} margin={{ top: 10, right: 10, left: -15, bottom: 20 }}>
+              <BarChart data={rankChartData} margin={{ top: 10, right: 10, left: -15, bottom: 25 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis
                   dataKey="rank"
@@ -262,12 +289,16 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                       const pct = ((data.count / total) * 100).toFixed(1);
                       return (
                         <div className="bg-slate-900 text-white p-3 rounded-xl shadow-xl text-xs space-y-1">
-                          <p className="font-bold text-teal-300">{data.rank} Rank</p>
+                          <p className={`font-bold ${data.isUnassigned ? 'text-slate-300' : 'text-teal-300'}`}>
+                            {data.rank} {data.isUnassigned ? '' : 'Rank'}
+                          </p>
                           <p className="font-mono">
                             Sequences: <span className="font-bold">{data.count}</span> ({pct}% of library)
                           </p>
                           <p className="text-[10px] text-slate-400">
-                            Deepest supported level at &tau; = {tau.toFixed(2)}
+                            {data.isUnassigned
+                              ? `Failed root domain confidence cutoff at \u03c4 = ${tau.toFixed(2)}`
+                              : `Deepest supported assignment level at \u03c4 = ${tau.toFixed(2)}`}
                           </p>
                         </div>
                       );
@@ -275,13 +306,27 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                     return null;
                   }}
                 />
-                <Bar
-                  dataKey="count"
-                  fill="#0d9488"
-                  radius={[6, 6, 0, 0]}
-                />
+                <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                  {rankChartData.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={entry.isUnassigned ? '#94a3b8' : '#0d9488'}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
+            <span className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-sm bg-teal-600" />
+              <span>Assigned taxonomic ranks (Domain &rarr; Genus)</span>
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-sm bg-slate-400" />
+              <span>Unassigned at root</span>
+            </span>
           </div>
         </div>
 
@@ -292,7 +337,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               Classification Composition
             </h3>
             <p className="text-xs text-slate-500">
-              Breakdown across {total} evaluated sequences
+              Breakdown across {total} evaluated sequence records
             </p>
           </div>
 
@@ -341,7 +386,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                     className="w-2.5 h-2.5 rounded-full shrink-0"
                     style={{ backgroundColor: item.color }}
                   />
-                  <span className="text-slate-600 truncate max-w-[150px]">{item.name}</span>
+                  <span className="text-slate-600 truncate max-w-[160px]">{item.name}</span>
                 </div>
                 <span className="font-mono font-semibold text-slate-900">
                   {item.value} ({((item.value / total) * 100).toFixed(0)}%)
@@ -359,7 +404,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-slate-900 tracking-tight">Available Analysis Runs</h3>
-              <p className="text-xs text-slate-500">Benchmark fixtures and user-uploaded datasets</p>
+              <p className="text-xs text-slate-500">Benchmark fixtures and user-uploaded analysis runs</p>
             </div>
             <span className="text-xs font-mono font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md">
               {allRuns.length} Runs Available
@@ -369,6 +414,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 text-xs shadow-2xs">
             {allRuns.map((r) => {
               const isCurrent = r.run.run_id === run.run_id;
+              const runBadge = getRunLabel(r.run.run_id);
 
               return (
                 <div
@@ -377,13 +423,22 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                     isCurrent ? 'bg-teal-50/40 border-l-4 border-l-teal-600' : ''
                   }`}
                 >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2.5">
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-bold text-slate-900 font-mono text-xs">
                         {r.run.run_id}
                       </span>
+                      {runBadge.isSample ? (
+                        <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md font-mono">
+                          {runBadge.text}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-md font-mono">
+                          {runBadge.text}
+                        </span>
+                      )}
                       {isCurrent && (
-                        <span className="text-[10px] font-bold text-teal-800 bg-teal-100/80 px-2 py-0.5 rounded-md">
+                        <span className="text-[10px] font-bold text-teal-900 bg-teal-100/90 px-2 py-0.5 rounded-md">
                           Active Dataset
                         </span>
                       )}
@@ -394,6 +449,8 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                       <span>Sequences: <span className="font-mono font-semibold text-slate-800">{r.sequences.length}</span></span>
                       <span>•</span>
                       <span>Ref: {r.run.reference.name} v{r.run.reference.version}</span>
+                      <span>•</span>
+                      <span>Date: {new Date(r.run.created_utc).toLocaleDateString()}</span>
                     </div>
                   </div>
 
@@ -421,16 +478,31 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             <span>Scientific Integrity Advisory</span>
           </div>
 
-          <div className="text-xs text-amber-950/85 space-y-2.5 leading-relaxed">
-            <p>
-              <strong>18S V4 Amplicon Scope:</strong> Evaluated strictly for eukaryotic environmental sequences. Species-level identification is not supported. All taxonomic assignments are capped at the genus level.
-            </p>
-            <p>
-              <strong>Partial Classifications:</strong> Sequences stopping above genus reflect gaps in the reference database or limits in marker resolution. They must never be classified as newly discovered organisms.
-            </p>
-            <p>
-              <strong>Calibrated Confidence:</strong> Probabilities reflect trained accuracy over PR2 holdout clades and are not cross-comparable to bootstrap values from other classifiers.
-            </p>
+          <div className="text-xs text-amber-950/90 space-y-2.5 leading-relaxed">
+            <div className="flex items-start gap-2">
+              <IconInfo className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
+              <p>
+                <strong>Species-level assignments unsupported:</strong> 18S V4 does not provide sufficient sequence divergence to distinguish individual species. Assignments are capped at genus rank.
+              </p>
+            </div>
+            <div className="flex items-start gap-2">
+              <IconInfo className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
+              <p>
+                <strong>Partial classifications:</strong> Sequences stopping above genus indicate reference database gaps or marker limits. They do not imply a newly discovered organism.
+              </p>
+            </div>
+            <div className="flex items-start gap-2">
+              <IconInfo className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
+              <p>
+                <strong>Model confidence semantics:</strong> Confidence values represent calibrated accuracy estimates trained on PR2 holdout clades and are not cross-comparable to bootstrap values.
+              </p>
+            </div>
+            <div className="flex items-start gap-2">
+              <IconInfo className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
+              <p>
+                <strong>QC-rejected sequences:</strong> Sequences failing QC criteria (&lt;200 bp or non-ACGT) were excluded from classification.
+              </p>
+            </div>
           </div>
         </div>
       </div>
