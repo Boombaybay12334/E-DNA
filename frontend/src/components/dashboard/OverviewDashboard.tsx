@@ -99,9 +99,19 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               Evaluated {new Date(run.created_utc).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
             </span>
             <span className="text-slate-300">•</span>
-            <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-              Status: Completed
-            </span>
+            {result.is_synthetic ? (
+              <span className="text-[10px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                Mode: Synthetic Benchmark Fixture
+              </span>
+            ) : run.model.name.toLowerCase().includes('pending') || Boolean(result.disclaimer?.includes('UNCLASSIFIED')) ? (
+              <span className="text-[10px] font-semibold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                Status: Classifier Inference Pending
+              </span>
+            ) : (
+              <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                Status: Completed
+              </span>
+            )}
           </div>
 
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">

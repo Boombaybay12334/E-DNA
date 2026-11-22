@@ -21,6 +21,7 @@ interface SequenceDetailDrawerProps {
 
 export const SequenceDetailDrawer: React.FC<SequenceDetailDrawerProps> = ({
   sequence,
+  run,
   tau,
   onClose,
 }) => {
@@ -54,13 +55,19 @@ export const SequenceDetailDrawer: React.FC<SequenceDetailDrawerProps> = ({
   const getInterpretationText = () => {
     switch (sequence.status) {
       case 'assigned_full':
-        return `Identified to genus: ${sequence.deepest_taxon ?? 'Unknown'}. All 8 taxonomic ranks meet or exceed confidence threshold \u03c4 = ${tau.toFixed(2)}.`;
+        return `Identified to ${sequence.deepest_rank ?? 'deepest rank'}: ${sequence.deepest_taxon ?? 'Unknown'}. All ${sequence.lineage.length} taxonomic ranks meet or exceed confidence threshold \u03c4 = ${tau.toFixed(2)}.`;
       case 'assigned_partial':
-        return `Supported down to ${sequence.deepest_rank ?? 'rank'}: ${sequence.deepest_taxon ?? 'Unknown'}. Deeper taxonomic levels are not supported by the reference database at \u03c4 = ${tau.toFixed(2)}.`;
+        return `Supported down to ${sequence.deepest_rank ?? 'rank'}: ${sequence.deepest_taxon ?? 'Unknown'}. Deeper taxonomic ranks did not meet operating threshold \u03c4 = ${tau.toFixed(2)}.`;
       case 'unassigned':
-        return `No reliable taxonomic assignment. The initial classification confidence at the domain root fell below threshold \u03c4 = ${tau.toFixed(2)}.`;
+        if (
+          run.model.name.toLowerCase().includes('pending') ||
+          (sequence.lineage && sequence.lineage.length > 0 && sequence.lineage.every((l) => l.confidence === null))
+        ) {
+          return 'Classification inference pending. Sequence quality intake passed, but machine learning taxonomic predictions have not been computed yet. This is not an ecological finding or evidence of absence of taxa.';
+        }
+        return `No reliable taxonomic assignment. The initial classification confidence at the root rank fell below threshold \u03c4 = ${tau.toFixed(2)}.`;
       case 'invalid_input':
-        return `Sequence failed quality validation and was rejected prior to classification: ${sequence.warnings.join(', ')}.`;
+        return `Sequence failed quality validation and was rejected prior to classification: ${sequence.warnings && sequence.warnings.length > 0 ? sequence.warnings.join(', ') : 'Quality criteria not met'}.`;
       default:
         return '';
     }
@@ -156,9 +163,12 @@ export const SequenceDetailDrawer: React.FC<SequenceDetailDrawerProps> = ({
                 <p className="font-medium">{getInterpretationText()}</p>
                 {sequence.status === 'assigned_partial' && (
                   <p className="text-[11px] text-amber-800 mt-1 italic">
-                    Note: Stopping above genus indicates reference database gap or marker resolution limit. Do not report as novel species.
+                    Note: Stopping at an intermediate rank indicates that deeper ranks did not meet operating threshold &tau;. Do not interpret unassigned deeper ranks as evidence of a novel species or organism.
                   </p>
                 )}
+                <p className="text-[10px] text-slate-500 mt-1.5 pt-1 border-t border-slate-200/60">
+                  Species-level classification has not been evaluated in this version.
+                </p>
               </div>
             </div>
           </div>

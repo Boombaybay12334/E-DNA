@@ -26,6 +26,7 @@ export {
   Info as IconInfo,
   Sparkles as IconSparkles,
   RefreshCw as IconRefresh,
+  RefreshCw as IconRefreshCw,
   Play as IconPlay,
   LayoutDashboard as IconDashboard,
   TableProperties as IconTable,

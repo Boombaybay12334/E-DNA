@@ -40,7 +40,7 @@ export const StatusBadge: FC<StatusBadgeProps> = ({
       return (
         <span
           className={`inline-flex items-center font-medium rounded-full bg-amber-50 text-amber-800 border border-amber-200 ${sizeClasses}`}
-          title="Supported down to intermediate rank. Deeper taxonomic levels are not supported by the reference database."
+          title="Supported down to intermediate rank. Deeper taxonomic ranks did not meet the operating confidence threshold \u03c4."
         >
           {showIcon && <IconAlertCircle className="w-3.5 h-3.5 text-amber-600" />}
           <span>Partially assigned</span>

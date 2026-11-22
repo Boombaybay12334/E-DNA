@@ -86,6 +86,8 @@ export interface ClassificationResult {
   run: RunMetadata;
   sequences: SequenceRecord[];
   summary: SummaryMetadata;
+  is_synthetic?: boolean;
+  disclaimer?: string;
 }
 
 export type AppView = 'overview' | 'results' | 'upload' | 'insights';

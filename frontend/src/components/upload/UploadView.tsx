@@ -1,80 +1,135 @@
-import React, { useState, useRef, useMemo } from 'react';
-import type { ClassificationResult, SequenceRecord, LineageEntry, ClassificationStatus } from '../../types/contract';
-import { parseFasta, validateFastaSequences, SAMPLE_18S_V4_FASTA, type ParsedSequence } from '../../lib/fasta';
-import { calculateAssignedDepth } from '../../lib/threshold';
+import React, { useState, useRef } from 'react';
+import type { ClassificationResult } from '../../types/contract';
+import { SAMPLE_18S_V4_FASTA } from '../../lib/fasta';
+import {
+  validateFastaFile,
+  createAnalysisRun,
+  fetchRunSequences,
+  createUnclassifiedResultFromRun,
+  type ValidateFastaResponse,
+} from '../../lib/api';
 import {
   IconUploadCloud,
   IconFileText,
   IconAlertTriangle,
-  IconPlay,
   IconSliders,
   IconDna,
   IconSparkles,
   IconRefresh,
+  IconRefreshCw,
   IconInfo,
+  IconCheckCircle,
+  IconXCircle,
+  IconCheck,
 } from '../common/icons';
 
 interface UploadViewProps {
-  onRunCreated: (newRun: ClassificationResult) => void;
+  onRunCreated?: (newRun: ClassificationResult) => void;
   defaultTau: number;
 }
 
 export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau }) => {
-  const [fastaContent, setFastaContent] = useState('');
+  const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileSize, setFileSize] = useState<string | null>(null);
   const [tau, setTau] = useState(defaultTau);
   const [selectedMarker, setSelectedMarker] = useState('18S_V4');
   const [isDragging, setIsDragging] = useState(false);
 
-  // Analysis simulation state
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [processStep, setProcessStep] = useState(0);
+  // API communication and validation states
+  const [isValidating, setIsValidating] = useState<boolean>(false);
+  const [isCreatingRun, setIsCreatingRun] = useState<boolean>(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [validationResponse, setValidationResponse] = useState<ValidateFastaResponse | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Parse and validate currently loaded FASTA
-  const parsedSequences = useMemo(() => {
-    if (!fastaContent.trim()) return [];
-    return parseFasta(fastaContent);
-  }, [fastaContent]);
+  // Validate file with FastAPI backend
+  const handleFileProcess = async (file: File) => {
+    // Validate extension client-side first
+    const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    if (!['.fasta', '.fa', '.fna'].includes(ext)) {
+      setApiError(
+        `Unsupported file extension '${ext}'. Allowed FASTA extensions are: .fasta, .fa, .fna.`
+      );
+      setValidationResponse(null);
+      setCurrentFile(null);
+      setFileName(file.name);
+      setFileSize((file.size / 1024).toFixed(1) + ' KB');
+      return;
+    }
 
-  const validationResults: ParsedSequence[] = useMemo(() => {
-    if (parsedSequences.length === 0) return [];
-    return validateFastaSequences(parsedSequences);
-  }, [parsedSequences]);
-
-  // Summary stats
-  const totalParsed = parsedSequences.length;
-  const warningsCount = validationResults.reduce((acc: number, v: ParsedSequence) => acc + v.warnings.length, 0);
-  const errorsCount = validationResults.reduce((acc: number, v: ParsedSequence) => acc + v.errors.length, 0);
-  const avgLength = totalParsed > 0
-    ? Math.round(parsedSequences.reduce((acc: number, s: { length: number }) => acc + s.length, 0) / totalParsed)
-    : 0;
-
-  const avgGc = totalParsed > 0
-    ? (
-        parsedSequences.reduce((acc: number, s: { sequence: string; length: number }) => {
-          const gc = (s.sequence.match(/[GCgc]/g) || []).length;
-          return acc + (gc / s.length);
-        }, 0) / totalParsed * 100
-      ).toFixed(1)
-    : '0';
-
-  const handleFileSelect = (file: File) => {
+    setCurrentFile(file);
     setFileName(file.name);
     setFileSize((file.size / 1024).toFixed(1) + ' KB');
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = (e.target?.result as string) || '';
-      setFastaContent(content);
-    };
-    reader.readAsText(file);
+    setApiError(null);
+    setIsValidating(true);
+    setValidationResponse(null);
+
+    try {
+      const response = await validateFastaFile(file);
+      setValidationResponse(response);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to connect to the validation backend.';
+      setApiError(msg);
+      setValidationResponse(null);
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const handleCreateRun = async () => {
+    if (!currentFile || !validationResponse || validationResponse.validation_status !== 'valid') {
+      return;
+    }
+
+    setIsCreatingRun(true);
+    setApiError(null);
+
+    try {
+      // 1. Create persistent run in SQLite database via POST /api/runs
+      const runDetail = await createAnalysisRun(currentFile, {
+        threshold_tau: tau,
+        reference_database: 'PR2 v5.0.0',
+        marker_gene: '18S rRNA',
+        marker_region: 'V4',
+        target_group: 'eukaryotes',
+      });
+
+      // 2. Query persistent sequence records from GET /api/runs/{run_id}/sequences
+      const seqsResponse = await fetchRunSequences(runDetail.run_id, 200, 0);
+      const seqItems = seqsResponse.sequences || seqsResponse.items || [];
+
+      // 3. Construct contract-compliant unclassified result representation
+      const newResult = createUnclassifiedResultFromRun(runDetail, seqItems);
+
+      if (onRunCreated) {
+        onRunCreated(newResult);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to persist analysis run.';
+      setApiError(msg);
+    } finally {
+      setIsCreatingRun(false);
+    }
+  };
+
+  const handleClearFile = () => {
+    setCurrentFile(null);
+    setFileName(null);
+    setFileSize(null);
+    setValidationResponse(null);
+    setApiError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(true);
+    if (!isValidating) {
+      setIsDragging(true);
+    }
   };
 
   const handleDragLeave = () => {
@@ -84,188 +139,18 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
+    if (isValidating) return;
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFileSelect(e.dataTransfer.files[0]);
+      handleFileProcess(e.dataTransfer.files[0]);
     }
   };
 
   const handleLoadSampleData = () => {
-    setFileName('sample_18S_V4_eukaryotes.fasta (DEMO DATA)');
-    setFileSize('14.2 KB');
-    setFastaContent(SAMPLE_18S_V4_FASTA);
-  };
-
-  // Pipeline simulation stages
-  const pipelineSteps = [
-    'Validating FASTA headers & sequence chemistry...',
-    'Extracting 18S V4 neural embeddings (Model A ensemble)...',
-    'Calibrating against PR2 v5.0.0 reference database...',
-    `Applying consecutive assignment rule at cutoff \u03c4 = ${tau.toFixed(2)}...`,
-    'Synthesizing Contract JSON v1.0 payload...',
-  ];
-
-  const handleStartAnalysis = () => {
-    if (totalParsed === 0 || errorsCount > 0) return;
-
-    setIsProcessing(true);
-    setProcessStep(0);
-
-    const stepInterval = setInterval(() => {
-      setProcessStep((prev) => {
-        if (prev < pipelineSteps.length - 1) {
-          return prev + 1;
-        } else {
-          clearInterval(stepInterval);
-          setTimeout(() => {
-            finishAnalysis();
-          }, 600);
-          return prev;
-        }
-      });
-    }, 550);
-  };
-
-  const finishAnalysis = () => {
-    const ranks = [
-      'domain',
-      'supergroup',
-      'division',
-      'subdivision',
-      'class',
-      'order',
-      'family',
-      'genus',
-    ];
-
-    // Build realistic taxonomic records based on validation
-    const sequences: SequenceRecord[] = validationResults.map((v: ParsedSequence, i: number) => {
-      const hasLengthError = v.warnings.includes('length_below_200');
-      const hasNonAcgt = v.warnings.some((w: string) => w.includes('non_acgt'));
-
-      if (hasLengthError || hasNonAcgt) {
-        return {
-          id: v.id,
-          length: v.length,
-          status: 'invalid_input' as ClassificationStatus,
-          assigned_depth: 0,
-          deepest_rank: null,
-          deepest_taxon: null,
-          lineage: ranks.map(r => ({ rank: r, taxon: null, confidence: null, assigned: false })),
-          warnings: v.warnings,
-          sequence_str: parsedSequences[i]?.sequence,
-        };
-      }
-
-      // Assign varying depths for realistic demo simulation
-      let depth = 8;
-      if (i % 5 === 0) depth = 8; // genus
-      else if (i % 5 === 1) depth = 7; // family
-      else if (i % 5 === 2) depth = 6; // order
-      else if (i % 5 === 3) depth = 4; // subdivision
-      else if (i % 5 === 4) depth = 0; // unassigned
-
-      // Confidences descending
-      const confidences = [1.0, 0.99, 0.97, 0.94, 0.88, 0.82, 0.74, 0.65];
-      if (depth < 8) {
-        confidences[depth] = Math.max(0.15, tau - 0.08);
-        for (let k = depth + 1; k < 8; k++) {
-          confidences[k] = 0.2 + (k * 0.05); // higher but invalidated by rule!
-        }
-      }
-
-      const mockTaxa = [
-        'Eukaryota',
-        i % 2 === 0 ? 'TSAR' : 'Amorphea',
-        i % 2 === 0 ? 'Alveolata' : 'Opisthokonta',
-        i % 2 === 0 ? 'Dinoflagellata' : 'Fungi',
-        i % 2 === 0 ? 'Dinophyceae' : 'Ascomycota',
-        i % 2 === 0 ? 'Gymnodiniales' : 'Saccharomycetales',
-        i % 2 === 0 ? 'Gymnodiniaceae' : 'Saccharomycetaceae',
-        i % 2 === 0 ? 'Gyrodinium' : 'Candida',
-      ];
-
-      const lineage: LineageEntry[] = ranks.map((r, rIdx) => {
-        const conf = depth === 0 && rIdx === 0 ? Math.max(0.1, tau - 0.15) : confidences[rIdx];
-        return {
-          rank: r,
-          taxon: mockTaxa[rIdx],
-          confidence: conf,
-          assigned: false,
-        };
-      });
-
-      const actualDepth = calculateAssignedDepth(lineage, tau);
-      const updatedLineage = lineage.map((l, lIdx) => ({
-        ...l,
-        assigned: lIdx < actualDepth,
-      }));
-
-      const status: ClassificationStatus =
-        actualDepth === 8 ? 'assigned_full' : actualDepth > 0 ? 'assigned_partial' : 'unassigned';
-
-      return {
-        id: v.id,
-        length: v.length,
-        status,
-        assigned_depth: actualDepth,
-        deepest_rank: actualDepth > 0 ? ranks[actualDepth - 1] : null,
-        deepest_taxon: actualDepth > 0 ? updatedLineage[actualDepth - 1].taxon : null,
-        lineage: updatedLineage,
-        warnings: v.warnings,
-        sequence_str: parsedSequences[i]?.sequence,
-      };
-    });
-
-    const runId = `user-analysis-${new Date().toISOString().slice(0, 10)}-${Math.floor(Math.random() * 900 + 100)}`;
-
-    const n_by_status: Record<string, number> = {
-      assigned_full: sequences.filter(s => s.status === 'assigned_full').length,
-      assigned_partial: sequences.filter(s => s.status === 'assigned_partial').length,
-      unassigned: sequences.filter(s => s.status === 'unassigned').length,
-      invalid_input: sequences.filter(s => s.status === 'invalid_input').length,
-    };
-
-    const n_by_deepest_rank: Record<string, number> = {};
-    for (const r of [...ranks, 'unassigned']) {
-      n_by_deepest_rank[r] = sequences.filter(s => (s.deepest_rank === r) || (r === 'unassigned' && s.status === 'unassigned')).length;
-    }
-
-    const newRun: ClassificationResult = {
-      contract_version: '1.0',
-      run: {
-        run_id: runId,
-        created_utc: new Date().toISOString(),
-        model: {
-          name: 'modelA_reg_ens5',
-          version: '0.1-calibrated',
-          code_commit: 'b82e14a',
-        },
-        reference: {
-          name: 'PR2',
-          version: '5.0.0',
-          subset: '18S V4, 99% clustered',
-        },
-        marker: {
-          gene: '18S rRNA',
-          region: 'V4',
-        },
-        ranks,
-        threshold: {
-          tau,
-          rule: 'assigned_depth = number of leading ranks (from the root) whose confidence >= tau',
-        },
-        confidence_semantics: 'calibrated estimate of accuracy learned on simulated PR2 clade holdouts; not comparable across models',
-      },
-      sequences,
-      summary: {
-        n_sequences: sequences.length,
-        n_by_status,
-        n_by_deepest_rank,
-      },
-    };
-
-    setIsProcessing(false);
-    onRunCreated(newRun);
+    if (isValidating) return;
+    const blob = new Blob([SAMPLE_18S_V4_FASTA], { type: 'text/plain' });
+    const sampleFile = new File([blob], 'sample_18S_V4_eukaryotes.fasta', { type: 'text/plain' });
+    handleFileProcess(sampleFile);
   };
 
   return (
@@ -277,20 +162,36 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
           <span>Upload FASTA</span>
         </div>
         <div className={`flex items-center gap-2.5 p-3 rounded-xl transition-colors ${
-          totalParsed > 0 ? 'bg-teal-50/60 border border-teal-200 text-teal-900 font-semibold' : 'bg-slate-50 text-slate-400'
+          validationResponse
+            ? validationResponse.validation_status === 'valid'
+              ? 'bg-teal-50 border border-teal-200 text-teal-900 font-semibold'
+              : 'bg-rose-50 border border-rose-200 text-rose-900 font-semibold'
+            : isValidating
+            ? 'bg-amber-50 border border-amber-200 text-amber-900 font-semibold animate-pulse'
+            : 'bg-slate-50 text-slate-400'
         }`}>
           <span className={`w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px] ${
-            totalParsed > 0 ? 'bg-teal-600 text-white' : 'bg-slate-200 text-slate-500'
+            validationResponse
+              ? validationResponse.validation_status === 'valid'
+                ? 'bg-teal-600 text-white'
+                : 'bg-rose-600 text-white'
+              : isValidating
+              ? 'bg-amber-600 text-white'
+              : 'bg-slate-200 text-slate-500'
           }`}>2</span>
-          <span>Client Validation</span>
+          <span>
+            {isValidating
+              ? 'Validating with FastAPI...'
+              : validationResponse
+              ? validationResponse.validation_status === 'valid'
+                ? 'Backend Validated'
+                : 'Validation Rejected'
+              : 'Backend Validation'}
+          </span>
         </div>
-        <div className={`flex items-center gap-2.5 p-3 rounded-xl transition-colors ${
-          totalParsed > 0 && errorsCount === 0 ? 'bg-teal-50/60 border border-teal-200 text-teal-900 font-semibold' : 'bg-slate-50 text-slate-400'
-        }`}>
-          <span className={`w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px] ${
-            totalParsed > 0 && errorsCount === 0 ? 'bg-teal-600 text-white' : 'bg-slate-200 text-slate-500'
-          }`}>3</span>
-          <span>Run 18S Classifier</span>
+        <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 text-slate-400">
+          <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center font-mono text-[10px]">3</span>
+          <span>Run 18S Classifier (Pending)</span>
         </div>
       </div>
 
@@ -309,7 +210,8 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
 
           <button
             onClick={handleLoadSampleData}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-teal-900 bg-teal-50 border border-teal-200/90 rounded-xl hover:bg-teal-100 transition-colors shadow-2xs"
+            disabled={isValidating}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-teal-900 bg-teal-50 border border-teal-200/90 rounded-xl hover:bg-teal-100 disabled:opacity-50 transition-colors shadow-2xs"
             title="Load standard 18S V4 test sequence library (DEMO DATA)"
           >
             <IconSparkles className="w-3.5 h-3.5 text-teal-600" />
@@ -322,36 +224,53 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${
-            isDragging
-              ? 'border-teal-500 bg-teal-50/60 shadow-inner'
-              : 'border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50'
+          onClick={() => {
+            if (!isValidating) {
+              fileInputRef.current?.click();
+            }
+          }}
+          className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
+            isValidating
+              ? 'border-amber-400 bg-amber-50/40 cursor-wait'
+              : isDragging
+              ? 'border-teal-500 bg-teal-50/60 shadow-inner cursor-pointer'
+              : 'border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50 cursor-pointer'
           }`}
         >
           <input
             ref={fileInputRef}
             type="file"
             accept=".fasta,.fa,.fna"
+            disabled={isValidating}
             onChange={(e) => {
               if (e.target.files && e.target.files[0]) {
-                handleFileSelect(e.target.files[0]);
+                handleFileProcess(e.target.files[0]);
               }
             }}
             className="hidden"
           />
 
           <div className="flex flex-col items-center justify-center gap-2.5">
-            <div className="p-3 bg-white rounded-2xl shadow-xs border border-slate-200 text-teal-600">
-              <IconUploadCloud className="w-6 h-6" />
+            <div className={`p-3 rounded-2xl shadow-xs border ${
+              isValidating
+                ? 'bg-amber-100 text-amber-700 border-amber-200 animate-spin'
+                : 'bg-white text-teal-600 border-slate-200'
+            }`}>
+              {isValidating ? <IconRefresh className="w-6 h-6" /> : <IconUploadCloud className="w-6 h-6" />}
             </div>
             <div>
               <p className="text-sm font-bold text-slate-800">
-                Drag and drop your FASTA file here, or{' '}
-                <span className="text-teal-600 underline">browse files</span>
+                {isValidating ? (
+                  <span className="text-amber-800">Sending to FastAPI backend (/api/validate-fasta)...</span>
+                ) : (
+                  <>
+                    Drag and drop your FASTA file here, or{' '}
+                    <span className="text-teal-600 underline">browse files</span>
+                  </>
+                )}
               </p>
               <p className="text-xs text-slate-400 mt-1">
-                Supported formats: <span className="font-mono">.fasta</span>, <span className="font-mono">.fa</span>, <span className="font-mono">.fna</span> (header tokens parsed per Contract schema)
+                Supported formats: <span className="font-mono">.fasta</span>, <span className="font-mono">.fa</span>, <span className="font-mono">.fna</span> (sent via multipart/form-data)
               </p>
             </div>
           </div>
@@ -365,88 +284,188 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
               <div>
                 <span className="font-bold text-slate-800 font-mono">{fileName}</span>
                 <span className="text-slate-400 ml-2 font-mono">({fileSize})</span>
-                <span className="text-teal-700 ml-2 font-semibold">[{totalParsed} sequences parsed]</span>
+                {validationResponse && (
+                  <span className={`ml-2 font-semibold ${
+                    validationResponse.validation_status === 'valid' ? 'text-teal-700' : 'text-rose-700'
+                  }`}>
+                    [{validationResponse.total_sequences} sequences parsed by backend]
+                  </span>
+                )}
               </div>
             </div>
             <button
-              onClick={() => {
-                setFastaContent('');
-                setFileName(null);
-                setFileSize(null);
-              }}
-              className="text-xs font-semibold text-rose-600 hover:text-rose-800 transition-colors"
+              onClick={handleClearFile}
+              disabled={isValidating}
+              className="text-xs font-semibold text-rose-600 hover:text-rose-800 disabled:opacity-50 transition-colors"
             >
               Clear file
             </button>
           </div>
         )}
+
+        {/* Backend Error Alert Banner */}
+        {apiError && (
+          <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs space-y-1 text-rose-900 animate-in fade-in duration-200">
+            <div className="flex items-center gap-2 font-bold text-rose-950">
+              <IconAlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>Backend Communication / Validation Error</span>
+            </div>
+            <p className="leading-relaxed">{apiError}</p>
+          </div>
+        )}
       </div>
 
-      {/* QC & Validation Summary Card */}
-      {totalParsed > 0 && (
+      {/* Backend Validation Summary Card */}
+      {validationResponse && (
         <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] space-y-4 animate-in fade-in duration-200">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <IconDna className="w-4 h-4 text-teal-600" />
-              <span>Client-Side Sequence Validation Summary</span>
+              <span>FastAPI Backend Sequence Validation Summary</span>
             </h3>
-            <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg">
-              {totalParsed} Records Detected
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-mono font-bold px-3 py-1 rounded-lg border ${
+                validationResponse.validation_status === 'valid'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  : 'bg-rose-50 text-rose-800 border-rose-200'
+              }`}>
+                Status: {validationResponse.validation_status.toUpperCase()}
+              </span>
+              <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg">
+                {validationResponse.total_sequences} Records Detected
+              </span>
+            </div>
           </div>
 
           {/* Metric cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-              <span className="text-slate-400 block text-[11px] uppercase font-mono">Valid Pass</span>
+              <span className="text-slate-400 block text-[11px] uppercase font-mono">Valid Sequences</span>
               <span className="text-xl font-bold text-emerald-700 font-mono">
-                {validationResults.filter((v: ParsedSequence) => v.isValid && v.warnings.length === 0).length}
+                {validationResponse.valid_sequences}
               </span>
             </div>
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-              <span className="text-slate-400 block text-[11px] uppercase font-mono">QC Flags</span>
-              <span className="text-xl font-bold text-amber-700 font-mono">{warningsCount}</span>
+              <span className="text-slate-400 block text-[11px] uppercase font-mono">Invalid Sequences</span>
+              <span className={`text-xl font-bold font-mono ${
+                validationResponse.invalid_sequences > 0 ? 'text-rose-700' : 'text-slate-400'
+              }`}>
+                {validationResponse.invalid_sequences}
+              </span>
             </div>
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-              <span className="text-slate-400 block text-[11px] uppercase font-mono">Mean Length</span>
-              <span className="text-xl font-bold text-slate-800 font-mono">{avgLength} bp</span>
+              <span className="text-slate-400 block text-[11px] uppercase font-mono">QC Warnings</span>
+              <span className={`text-xl font-bold font-mono ${
+                validationResponse.warnings.length > 0 ? 'text-amber-700' : 'text-slate-400'
+              }`}>
+                {validationResponse.warnings.length}
+              </span>
             </div>
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-              <span className="text-slate-400 block text-[11px] uppercase font-mono">Mean GC%</span>
-              <span className="text-xl font-bold text-teal-800 font-mono">{avgGc}%</span>
+              <span className="text-slate-400 block text-[11px] uppercase font-mono">File Size</span>
+              <span className="text-xl font-bold text-slate-800 font-mono">
+                {(validationResponse.file_size_bytes / 1024).toFixed(1)} KB
+              </span>
             </div>
           </div>
 
-          {/* Validation Observations */}
-          {warningsCount > 0 && (
+          {/* Validation Errors from Backend */}
+          {validationResponse.errors.length > 0 && (
+            <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs space-y-2 text-rose-900">
+              <div className="flex items-center gap-1.5 font-bold text-rose-950">
+                <IconXCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>Validation Errors ({validationResponse.errors.length})</span>
+              </div>
+              <ul className="list-disc list-inside space-y-1">
+                {validationResponse.errors.map((err, idx) => (
+                  <li key={idx}>
+                    {err.sequence_id && <span className="font-mono font-bold mr-1">{err.sequence_id}:</span>}
+                    {err.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Validation Warnings / Observations from Backend */}
+          {validationResponse.warnings.length > 0 && (
             <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-xl text-xs space-y-2">
               <div className="flex items-center gap-1.5 font-bold text-amber-950">
                 <IconAlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>Pre-Inference Quality Observations</span>
+                <span>Pre-Inference Quality Observations ({validationResponse.warnings.length})</span>
               </div>
               <ul className="list-disc list-inside space-y-1 text-amber-900">
-                {validationResults
-                  .filter((v: ParsedSequence) => v.warnings.length > 0)
-                  .slice(0, 5)
-                  .map((v: ParsedSequence) => (
-                    <li key={v.id}>
-                      <span className="font-mono font-bold text-amber-950">{v.id}:</span>{' '}
-                      {v.warnings.join(', ')}
-                    </li>
-                  ))}
-                {validationResults.filter((v: ParsedSequence) => v.warnings.length > 0).length > 5 && (
+                {validationResponse.warnings.slice(0, 6).map((w, idx) => (
+                  <li key={idx}>
+                    <span className="font-mono font-bold text-amber-950">{w.sequence_id}:</span>{' '}
+                    {w.message}
+                  </li>
+                ))}
+                {validationResponse.warnings.length > 6 && (
                   <li className="text-amber-700 italic">
-                    ...and {validationResults.filter((v: ParsedSequence) => v.warnings.length > 0).length - 5} additional flagged sequences.
+                    ...and {validationResponse.warnings.length - 6} additional flagged sequences.
                   </li>
                 )}
               </ul>
             </div>
           )}
 
+          {/* Sequence Preview Table */}
+          {validationResponse.sequences.length > 0 && (
+            <div className="space-y-2 pt-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Validated Sequence Records ({validationResponse.sequences.length})
+                </span>
+                <span className="text-[11px] text-slate-400">Verified by FastAPI backend parser</span>
+              </div>
+              <div className="border border-slate-200 rounded-xl overflow-hidden max-h-56 overflow-y-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 sticky top-0">
+                    <tr>
+                      <th className="py-2 px-3 font-semibold">Sequence ID</th>
+                      <th className="py-2 px-3 font-semibold">Length</th>
+                      <th className="py-2 px-3 font-semibold">Validation Status</th>
+                      <th className="py-2 px-3 font-semibold">QC Flags</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700 font-mono">
+                    {validationResponse.sequences.map((seq) => (
+                      <tr key={seq.sequence_id} className="hover:bg-slate-50/50">
+                        <td className="py-2 px-3 font-bold text-slate-900">{seq.sequence_id}</td>
+                        <td className="py-2 px-3 text-slate-600">{seq.length} bp</td>
+                        <td className="py-2 px-3">
+                          {seq.valid ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700 font-sans font-semibold">
+                              <IconCheck className="w-3 h-3 text-emerald-600" /> Pass
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-rose-700 font-sans font-semibold">
+                              <IconXCircle className="w-3 h-3 text-rose-600" /> Invalid
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 px-3 text-[11px]">
+                          {seq.qc_flags.length > 0 ? (
+                            <span className="text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                              {seq.qc_flags.join(', ')}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 font-sans">None</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500 flex items-start gap-2">
             <IconInfo className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
             <p>
-              <strong>Note:</strong> Frontend validation verifies syntax formatting, character legality, and basic length constraints. Full biological verification and taxonomic classification occur during neural inference.
+              <strong>Backend Response Verified:</strong> FASTA syntax, IUPAC chemistry, and length thresholds were computed by the Python backend without transferring raw DNA strings to preserve network performance.
             </p>
           </div>
         </div>
@@ -528,46 +547,59 @@ export const UploadView: React.FC<UploadViewProps> = ({ onRunCreated, defaultTau
         </div>
       </div>
 
-      {/* Execution Action & Progress Card */}
+      {/* Execution Action & Classifier Status Card */}
       <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] space-y-4">
-        {isProcessing ? (
-          <div className="py-6 space-y-4 text-center">
-            <div className="flex items-center justify-center">
-              <IconRefresh className="w-8 h-8 text-teal-600 animate-spin" />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-slate-800">Running 18S Classifier Pipeline...</h4>
-              <p className="text-xs text-teal-700 font-mono mt-1">
-                {pipelineSteps[processStep]}
-              </p>
-            </div>
-            <div className="max-w-md mx-auto w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-teal-600 transition-all duration-300"
-                style={{ width: `${((processStep + 1) / pipelineSteps.length) * 100}%` }}
-              />
-            </div>
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="text-xs text-slate-500 space-y-1">
+            {!validationResponse ? (
+              <span>Please upload or load a sample FASTA file to begin backend sequence validation.</span>
+            ) : validationResponse.validation_status === 'valid' ? (
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2 text-emerald-800 font-semibold">
+                  <IconCheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>
+                    Backend Validation Passed ({validationResponse.valid_sequences} sequences verified).
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Ready to persist Analysis Run in SQLite database. (ML classifier pending integration)
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-rose-700 font-semibold">
+                <IconXCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>Validation failed ({validationResponse.invalid_sequences} invalid sequences). Resolve errors to proceed.</span>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="text-xs text-slate-500">
-              {totalParsed === 0 ? (
-                <span>Please upload or load a sample FASTA file to begin classification.</span>
-              ) : (
-                <span>Ready to classify {totalParsed} sequence records at &tau; = {tau.toFixed(2)}.</span>
-              )}
-            </div>
 
+          <div className="flex items-center gap-3">
             <button
-              onClick={handleStartAnalysis}
-              disabled={totalParsed === 0 || errorsCount > 0}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-teal-600 rounded-xl hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs hover:shadow-sm"
+              onClick={handleCreateRun}
+              disabled={!validationResponse || validationResponse.validation_status !== 'valid' || isCreatingRun}
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed rounded-xl transition-all shadow-sm cursor-pointer"
+              title={
+                !validationResponse
+                  ? 'Upload and validate a FASTA file first'
+                  : validationResponse.validation_status !== 'valid'
+                  ? 'Resolve validation errors to create an Analysis Run'
+                  : 'Saves analysis run and sequence records in SQLite'
+              }
             >
-              <IconPlay className="w-4 h-4 fill-current" />
-              <span>Run 18S Classification</span>
+              {isCreatingRun ? (
+                <>
+                  <IconRefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Creating Run in SQLite...</span>
+                </>
+              ) : (
+                <>
+                  <IconDna className="w-4 h-4" />
+                  <span>Create Analysis Run</span>
+                </>
+              )}
             </button>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

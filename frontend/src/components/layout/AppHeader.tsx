@@ -59,13 +59,31 @@ export const AppHeader: FC<AppHeaderProps> = ({
                 Taxonomic Classification Platform
               </span>
               <span className="text-slate-300 hidden sm:inline">•</span>
-              <span
-                className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-medium bg-emerald-50 px-1.5 py-0.2 rounded cursor-help"
-                title={`Classifier: ${modelName} v${modelVer} (calibrated on PR2 clade holdouts)`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="truncate max-w-[120px] sm:max-w-none">{modelName}</span>
-              </span>
+              {currentRun.is_synthetic ? (
+                <span
+                  className="inline-flex items-center gap-1 text-[10px] text-amber-800 font-medium bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 cursor-help"
+                  title="Illustrative Contract v1.0 fixture benchmark"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  <span>Synthetic Benchmark</span>
+                </span>
+              ) : modelName.toLowerCase().includes('pending') ? (
+                <span
+                  className="inline-flex items-center gap-1 text-[10px] text-blue-800 font-medium bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200 cursor-help"
+                  title="Intake validated in SQLite. ML classifier pending integration."
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                  <span>Classifier Pending</span>
+                </span>
+              ) : (
+                <span
+                  className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-medium bg-emerald-50 px-1.5 py-0.2 rounded cursor-help"
+                  title={`Classifier: ${modelName} v${modelVer} (calibrated on PR2 clade holdouts)`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="truncate max-w-[120px] sm:max-w-none">{modelName}</span>
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -84,11 +102,18 @@ export const AppHeader: FC<AppHeaderProps> = ({
               onChange={(e) => onSelectRun(e.target.value)}
               className="bg-transparent text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer pr-2 font-mono max-w-[140px] sm:max-w-[200px] truncate"
             >
-              {allRuns.map((r) => (
-                <option key={r.run.run_id} value={r.run.run_id}>
-                  {r.run.run_id} ({r.sequences.length} seqs)
-                </option>
-              ))}
+              {allRuns.map((r) => {
+                const tag = r.is_synthetic
+                  ? '[Synthetic Fixture]'
+                  : r.run.model.name.toLowerCase().includes('pending')
+                  ? '[Classifier Pending]'
+                  : '';
+                return (
+                  <option key={r.run.run_id} value={r.run.run_id}>
+                    {r.run.run_id} {tag} ({r.sequences.length} seqs)
+                  </option>
+                );
+              })}
             </select>
           </div>
         </div>

@@ -1,0 +1,32 @@
+# Python & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local Databases (SQLite)
+*.db
+*.sqlite
+*.sqlite3
+edna_explorer.db
+test_*.db
+
+# Environment variables
+.env
+!.env.example
+
+# Node / Frontend
+node_modules/
+dist/
+.vite/
+*.log
